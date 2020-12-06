@@ -15,8 +15,12 @@
 #if defined(OS_WIN)
 // VersionHelpers.h depends on Windows.h.
 #include <Windows.h>
-// For IsWindows8Point1OrGreater().
+#if defined(WINUWP)
+#define IsWindows8Point1OrGreater() true
+#else
+// VersionHelpers.h must be included after windows.h.
 #include <VersionHelpers.h>
+#endif
 #endif
 
 #define ALLOW_ENABLING_PCSCAN 0

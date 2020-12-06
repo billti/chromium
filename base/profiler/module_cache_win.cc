@@ -19,6 +19,8 @@
 #include "base/win/scoped_handle.h"
 #include "base/win/win_util.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 
 namespace {
@@ -111,6 +113,9 @@ class WindowsModule : public ModuleCache::Module {
 };
 
 ScopedModuleHandle GetModuleHandleForAddress(DWORD64 address) {
+#if defined(WINUWP)
+  UWP_API_ERROR("GetModuleHandleEx");
+#else
   HMODULE module_handle = nullptr;
   // GetModuleHandleEx() increments the module reference count, which is then
   // managed and ultimately decremented by ScopedModuleHandle.
@@ -121,6 +126,7 @@ ScopedModuleHandle GetModuleHandleForAddress(DWORD64 address) {
     DCHECK_EQ(ERROR_MOD_NOT_FOUND, static_cast<int>(error));
   }
   return ScopedModuleHandle(module_handle);
+#endif  // defined(WINUWP)
 }
 
 std::unique_ptr<ModuleCache::Module> CreateModuleForHandle(

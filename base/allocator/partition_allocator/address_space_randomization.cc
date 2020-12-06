@@ -13,7 +13,12 @@
 #if defined(OS_WIN)
 #include <windows.h>  // Must be in front of other Windows header files.
 
+#if defined(WINUWP)
+#define IsWindows8Point1OrGreater() true
+#else
 #include <VersionHelpers.h>
+#endif
+
 #endif
 
 namespace base {

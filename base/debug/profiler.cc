@@ -16,6 +16,7 @@
 #if defined(OS_WIN)
 #include "base/win/current_module.h"
 #include "base/win/pe_image.h"
+#include "base/win/uwp_exception.h"
 #endif  // defined(OS_WIN)
 
 // TODO(peria): Enable profiling on Windows.
@@ -114,6 +115,9 @@ bool FindResolutionFunctionInImports(
     const base::win::PEImage &image, const char* module_name,
     PIMAGE_THUNK_DATA unused_name_table, PIMAGE_THUNK_DATA import_address_table,
     PVOID cookie) {
+#if defined(WINUWP)
+  UWP_API_ERROR("FindResolutionFunctionInImports");
+#else
   FunctionSearchContext* context =
       reinterpret_cast<FunctionSearchContext*>(cookie);
 
@@ -145,6 +149,7 @@ bool FindResolutionFunctionInImports(
 
   // Keep going.
   return true;
+#endif // defined(WINUWP)
 }
 
 template <typename FunctionType>

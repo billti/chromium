@@ -4,6 +4,7 @@
 
 #include "base/win/resource_util.h"
 #include "base/notreached.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 namespace win {
@@ -20,6 +21,10 @@ bool GetResourceFromModule(HMODULE module,
     NOTREACHED();
     return false;
   }
+
+#if defined(WINUWP)
+  UWP_API_ERROR("FindResource");
+#else
 
   HRSRC hres_info =
       FindResource(module, MAKEINTRESOURCE(resource_id), resource_type);
@@ -38,6 +43,8 @@ bool GetResourceFromModule(HMODULE module,
   *data = resource;
   *length = static_cast<size_t>(data_size);
   return true;
+#endif // defined(WINUWP)
+
 }
 
 bool GetDataResourceFromModule(HMODULE module,

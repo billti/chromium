@@ -144,6 +144,11 @@ UINT GetIntervalMs() {
 // requested and update if necessary (by cancelling the old request and making a
 // new request). If there is no change then do nothing.
 void UpdateTimerIntervalLocked() {
+#if defined(WINUWP)
+  // On UWP, we always just use GetSystemTimePreciseAsFileTime, so nothing to do here.
+  return;
+#else
+
   UINT new_interval = GetIntervalMs();
   if (new_interval == g_last_interval_requested_ms)
     return;
@@ -160,6 +165,7 @@ void UpdateTimerIntervalLocked() {
     g_high_res_timer_last_activation = subtle::TimeTicksNowIgnoringOverride();
     timeBeginPeriod(g_last_interval_requested_ms);
   }
+#endif  // defined(WINUWP)
 }
 
 // Returns the current value of the performance counter.
@@ -393,12 +399,23 @@ void Time::Explode(bool is_local, Exploded* exploded) const {
 
 namespace {
 
+#if defined(WINUWP)
+// UWP doesn't support the timeGetTime WIN32 API.
+DWORD timeGetTimeWrapper() {
+  int64_t fileTime;
+  GetSystemTimePreciseAsFileTime((LPFILETIME)&fileTime);
+  // We want system time in milliseconds as a DWORD. FILETIME is in 100ns.
+  fileTime /= 10 * 1000;
+  return (DWORD)fileTime;
+}
+#else
 // We define a wrapper to adapt between the __stdcall and __cdecl call of the
 // mock function, and to avoid a static constructor.  Assigning an import to a
 // function pointer directly would require setup code to fetch from the IAT.
 DWORD timeGetTimeWrapper() {
   return timeGetTime();
 }
+#endif  // defined(WINUWP)
 
 DWORD (*g_tick_function)(void) = &timeGetTimeWrapper;
 
@@ -648,13 +665,14 @@ ThreadTicks ThreadTicks::GetForThread(
     const PlatformThreadHandle& thread_handle) {
   DCHECK(IsSupported());
 
-#if defined(ARCH_CPU_ARM64)
+#if defined(ARCH_CPU_ARM64) || defined(WINUWP)
   // QueryThreadCycleTime versus TSCTicksPerSecond doesn't have much relation to
   // actual elapsed time on Windows on Arm, because QueryThreadCycleTime is
   // backed by the actual number of CPU cycles executed, rather than a
   // constant-rate timer like Intel. To work around this, use GetThreadTimes
   // (which isn't as accurate but is meaningful as a measure of elapsed
   // per-thread time).
+  // ::QueryThreadCycleTime also isn't available on UWP
   FILETIME creation_time, exit_time, kernel_time, user_time;
   ::GetThreadTimes(thread_handle.platform_handle(), &creation_time, &exit_time,
                    &kernel_time, &user_time);

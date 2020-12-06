@@ -161,7 +161,9 @@ class BASE_EXPORT MessagePumpForUI : public MessagePumpWin {
   bool ProcessMessageHelper(const MSG& msg);
   bool ProcessPumpReplacementMessage();
 
+#if !defined(WINUWP)
   base::win::MessageWindow message_window_;
+#endif
 
   // Whether MessagePumpForUI responds to WM_QUIT messages or not.
   // TODO(thestig): Remove when the Cloud Print Service goes away.

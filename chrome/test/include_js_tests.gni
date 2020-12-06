@@ -2,6 +2,6 @@ import("//build/config/sanitizers/sanitizers.gni")
 
 if (!is_android) {
   # js_tests don't work in cross builds, https://crbug.com/1010561
-  include_js_tests =
+  include_js_tests = !is_winuwp &&
       !(is_asan || is_msan || is_tsan || is_cfi || (is_win && host_os != "win"))
 }

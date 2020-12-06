@@ -19,7 +19,12 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/windows_version.h"
+
+#if defined(WINUWP)
+#include "base/win/uwp_exception.h"
+#else
 #include "base/win/wmi.h"
+#endif
 
 namespace {
 
@@ -168,6 +173,9 @@ void SysInfo::OperatingSystemVersionNumbers(int32_t* major_version,
 
 // static
 SysInfo::HardwareInfo SysInfo::GetHardwareInfoSync() {
+#if defined(WINUWP)
+  UWP_API_ERROR("win::WmiComputerSystemInfo::Get");
+#else
   win::WmiComputerSystemInfo wmi_info = win::WmiComputerSystemInfo::Get();
 
   HardwareInfo info;
@@ -178,6 +186,7 @@ SysInfo::HardwareInfo SysInfo::GetHardwareInfoSync() {
   DCHECK(IsStringUTF8(info.model));
   DCHECK(IsStringUTF8(info.serial_number));
   return info;
+#endif // defined(WINUWP)
 }
 
 }  // namespace base

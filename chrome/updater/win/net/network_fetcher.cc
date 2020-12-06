@@ -4,7 +4,13 @@
 
 #include "chrome/updater/win/net/network_fetcher.h"
 
-#include <versionhelpers.h>
+#if defined(WINUWP)
+#define IsWindows8Point1OrGreater() true
+#else
+// VersionHelpers.h must be included after windows.h.
+#include <VersionHelpers.h>
+#endif
+
 
 #include <memory>
 #include <utility>

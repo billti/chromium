@@ -13,6 +13,36 @@
 #include "base/strings/char_traits.h"
 
 namespace base {
+
+#if defined(WINUWP)
+
+namespace win {
+
+// static
+bool HStringReference::ResolveCoreWinRTStringDelayload() {
+  return true;
+}
+
+HStringReference::HStringReference(const wchar_t* str, size_t length) {
+  // String must be null terminated for WindowsCreateStringReference.
+  // nullptr str is OK so long as the length is 0.
+  DCHECK(str ? str[length] == L'\0' : length == 0);
+  // If you nullptr crash here, you've failed to call
+  // ResolveCoreWinRTStringDelayLoad and check its return value.
+  const HRESULT hr = ::WindowsCreateStringReference(
+      str, checked_cast<UINT32>(length), &hstring_header_, &hstring_);
+  // All failure modes of WindowsCreateStringReference are handled gracefully
+  // but this class.
+  DCHECK_EQ(hr, S_OK);
+}
+
+HStringReference::HStringReference(const wchar_t* str)
+    : HStringReference(str, str ? CharTraits<wchar_t>::length(str) : 0) {}
+
+}  // namespace win
+
+#else
+
 namespace {
 
 bool g_winrt_string_loaded = false;
@@ -59,4 +89,6 @@ HStringReference::HStringReference(const wchar_t* str)
     : HStringReference(str, str ? CharTraits<wchar_t>::length(str) : 0) {}
 
 }  // namespace win
+
+#endif // defined(WINUWP)
 }  // namespace base

@@ -9,7 +9,9 @@
 #include "base/optional.h"
 #include "base/task/thread_pool/task_tracker.h"
 #include "base/threading/scoped_blocking_call_internal.h"
+#if !defined(WINUWP)
 #include "base/win/scoped_com_initializer.h"
+#endif
 
 namespace base {
 namespace internal {
@@ -90,11 +92,13 @@ ThreadGroupNativeWin::RunNextTaskSource(PTP_CALLBACK_INSTANCE callback_instance,
   auto* thread_group =
       static_cast<ThreadGroupNativeWin*>(thread_group_windows_impl);
 
+#if !defined(WINUWP)
   // Windows Thread Pool API best practices state that all resources created
   // in the callback function should be cleaned up before returning from the
   // function. This includes COM initialization.
   auto win_thread_environment = thread_group->GetScopedWindowsThreadEnvironment(
       thread_group->worker_environment_);
+#endif
 
   ScopedCallbackMayRunLongObserver callback_may_run_long_observer(
       callback_instance);

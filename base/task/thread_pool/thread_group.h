@@ -175,7 +175,7 @@ class BASE_EXPORT ThreadGroup {
               TrackedRef<Delegate> delegate,
               ThreadGroup* predecessor_thread_group = nullptr);
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
   static std::unique_ptr<win::ScopedWindowsThreadEnvironment>
   GetScopedWindowsThreadEnvironment(WorkerEnvironment environment);
 #endif

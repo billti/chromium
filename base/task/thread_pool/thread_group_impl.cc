@@ -37,8 +37,10 @@
 #include "build/build_config.h"
 
 #if defined(OS_WIN)
+#if !defined(WINUWP)
 #include "base/win/scoped_com_initializer.h"
 #include "base/win/scoped_windows_thread_environment.h"
+#endif
 #include "base/win/scoped_winrt_initializer.h"
 #include "base/win/windows_version.h"
 #endif  // defined(OS_WIN)
@@ -293,7 +295,7 @@ class ThreadGroupImpl::WorkerThreadDelegateImpl : public WorkerThread::Delegate,
     // yet).
     bool is_running_task = false;
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
     std::unique_ptr<win::ScopedWindowsThreadEnvironment> win_thread_environment;
 #endif  // defined(OS_WIN)
   } worker_only_;
@@ -555,7 +557,7 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::OnMainEntry(
 #endif
   }
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
   worker_only().win_thread_environment = GetScopedWindowsThreadEnvironment(
       outer_->after_start().worker_environment);
 #endif  // defined(OS_WIN)
@@ -768,7 +770,7 @@ void ThreadGroupImpl::WorkerThreadDelegateImpl::OnMainExit(
   }
 #endif
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
   worker_only().win_thread_environment.reset();
 #endif  // defined(OS_WIN)
 

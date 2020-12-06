@@ -8,6 +8,7 @@
 #include <utility>
 
 #include "base/ranges/algorithm.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 
@@ -34,6 +35,9 @@ ModuleCache::ModuleCache() = default;
 ModuleCache::~ModuleCache() = default;
 
 const ModuleCache::Module* ModuleCache::GetModuleForAddress(uintptr_t address) {
+#if defined(WINUWP)
+  UWP_API_ERROR("GetExistingModuleForAddress calls unavailable Win32 APIs");
+#else
   if (const ModuleCache::Module* module = GetExistingModuleForAddress(address))
     return module;
 
@@ -44,6 +48,7 @@ const ModuleCache::Module* ModuleCache::GetModuleForAddress(uintptr_t address) {
   // TODO(https://crbug.com/1131769): Reintroduce DCHECK(result.second) after
   // fixing the issue that is causing it to fail.
   return result.first->get();
+#endif  // defined(WINUWP)
 }
 
 std::vector<const ModuleCache::Module*> ModuleCache::GetModules() const {

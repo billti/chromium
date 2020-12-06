@@ -17,7 +17,29 @@ namespace base {
 
 namespace {
 
+
+#if defined(WINUWP)
+
+static bool g_load_succeeded = true;
+
+HRESULT WindowsCreateString(const wchar_t* src,
+                            uint32_t len,
+                            HSTRING* out_hstr) {
+  return ::WindowsCreateString(src, len, out_hstr);
+}
+
+HRESULT WindowsDeleteString(HSTRING hstr) {
+  return ::WindowsDeleteString(hstr);
+}
+
+const wchar_t* WindowsGetStringRawBuffer(HSTRING hstr, uint32_t* out_len) {
+  return ::WindowsGetStringRawBuffer(hstr, out_len);
+}
+
+#else
+
 static bool g_load_succeeded = false;
+
 
 FARPROC LoadComBaseFunction(const char* function_name) {
   static HMODULE const handle =
@@ -74,6 +96,8 @@ const wchar_t* WindowsGetStringRawBuffer(HSTRING hstr, uint32_t* out_len) {
   return get_string_raw_buffer_func(hstr, out_len);
 }
 
+#endif  // defined(WINUWP)
+
 }  // namespace
 
 namespace internal {
@@ -122,8 +146,12 @@ bool ScopedHString::ResolveCoreWinRTStringDelayload() {
   // TODO(finnur): Add AssertIOAllowed once crbug.com/770193 is fixed.
 
   static const bool load_succeeded = []() {
+#if defined(WINUWP)
+    bool success = true;
+#else
     bool success = GetWindowsCreateString() && GetWindowsDeleteString() &&
                    GetWindowsGetStringRawBuffer();
+#endif
     g_load_succeeded = success;
     return success;
   }();

@@ -10,7 +10,12 @@
 #include "base/strings/string16.h"
 #include "base/strings/string_util.h"
 #include "base/task/current_thread.h"
+
+#if defined(WINUWP)
+#include "base/win/uwp_exception.h"
+#else
 #include "base/win/wrapped_window_proc.h"
+#endif
 
 namespace base {
 
@@ -68,6 +73,9 @@ bool PowerMonitorDeviceSource::IsOnBatteryPowerImpl() {
 
 PowerMonitorDeviceSource::PowerMessageWindow::PowerMessageWindow()
     : instance_(NULL), message_hwnd_(NULL) {
+#if defined(WINUWP)
+  UWP_API_ERROR("CreateWindowEx & WNDCLASSEX");
+#else
   if (!CurrentUIThread::IsSet()) {
     // Creating this window in (e.g.) a renderer inhibits shutdown on Windows.
     // See http://crbug.com/230122. TODO(vandebo): http://crbug.com/236031
@@ -89,15 +97,21 @@ PowerMonitorDeviceSource::PowerMessageWindow::PowerMessageWindow()
   message_hwnd_ =
       CreateWindowEx(WS_EX_NOACTIVATE, kWindowClassName, NULL, WS_POPUP, 0, 0,
                      0, 0, NULL, NULL, instance_, NULL);
+#endif  // defined(WINUWP)
 }
 
 PowerMonitorDeviceSource::PowerMessageWindow::~PowerMessageWindow() {
+#if defined(WINUWP)
+  std::terminate(); // This function is noexcept
+#else
   if (message_hwnd_) {
     DestroyWindow(message_hwnd_);
     UnregisterClass(kWindowClassName, instance_);
   }
+#endif  // defined(WINUWP)
 }
 
+#if !defined(WINUWP)
 // static
 LRESULT CALLBACK PowerMonitorDeviceSource::PowerMessageWindow::WndProcThunk(
     HWND hwnd,
@@ -112,5 +126,6 @@ LRESULT CALLBACK PowerMonitorDeviceSource::PowerMessageWindow::WndProcThunk(
       return ::DefWindowProc(hwnd, message, wparam, lparam);
   }
 }
+#endif
 
 }  // namespace base

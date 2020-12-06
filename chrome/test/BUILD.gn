@@ -745,7 +745,7 @@ static_library("browser_tests_runner") {
   }
 }
 
-if (!is_android) {
+if (!is_android && !is_winuwp) {
   test("browser_tests") {
     use_xvfb = use_xvfb_in_this_config
 
@@ -3189,7 +3189,7 @@ if (chromeos_is_browser_only) {
   }
 }
 
-if (is_linux || is_chromeos || is_mac || is_win) {
+if (is_linux || is_chromeos || is_mac || is_win && !is_winuwp) {
   import("//tools/binary_size/sizes.gni")
 
   group("browser_tests_apprtc") {
@@ -3293,7 +3293,7 @@ group("performance_test_suite") {
     ]
   }
 
-  if (!is_android) {
+  if (!is_android && !is_winuwp) {
     data_deps += [ "//chrome/test:performance_browser_tests" ]
   }
 
@@ -6807,7 +6807,7 @@ test("chrome_app_unittests") {
   }
 }
 
-if (!is_android) {
+if (!is_android && !is_winuwp) {
   # Everything needed to build/copy to run the performance_browser_tests isolate.
   # See: //testing/buildbot/gn_isolate_map.pyl
   group("performance_browser_tests") {

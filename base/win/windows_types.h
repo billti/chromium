@@ -19,6 +19,11 @@ extern "C" {
 
 // typedef and define the most commonly used Windows integer types.
 
+#if !defined(TRUE) && !defined(FALSE)
+#define TRUE 1
+#define FALSE 0
+#endif
+
 typedef unsigned long DWORD;
 typedef long LONG;
 typedef __int64 LONGLONG;
@@ -273,5 +278,10 @@ WINBASEAPI VOID WINAPI SetLastError(_In_ DWORD dwErrCode);
 #define SetCurrentDirectory SetCurrentDirectoryW
 #define StartService StartServiceW
 #define UpdateResource UpdateResourceW
+
+#if defined(WINUWP)
+#undef CreateFile
+#define CreateFile CreateFileFromAppW
+#endif
 
 #endif  // BASE_WIN_WINDOWS_TYPES_H_

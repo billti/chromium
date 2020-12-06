@@ -204,7 +204,7 @@ bool CreateThreadInternal(size_t stack_size,
 namespace internal {
 
 void AssertMemoryPriority(HANDLE thread, int memory_priority) {
-#if DCHECK_IS_ON()
+#if DCHECK_IS_ON() && !defined(WINUWP)
   static const auto get_thread_information_fn =
       reinterpret_cast<decltype(&::GetThreadInformation)>(::GetProcAddress(
           ::GetModuleHandle(L"Kernel32.dll"), "GetThreadInformation"));
@@ -263,6 +263,10 @@ void PlatformThread::Sleep(TimeDelta duration) {
 void PlatformThread::SetName(const std::string& name) {
   ThreadIdNameManager::GetInstance()->SetName(name);
 
+#if defined(WINUWP)
+  ::SetThreadDescription(::GetCurrentThread(),
+                              base::UTF8ToWide(name).c_str());
+#else
   // The SetThreadDescription API works even if no debugger is attached.
   static auto set_thread_description_func =
       reinterpret_cast<SetThreadDescription>(::GetProcAddress(
@@ -271,6 +275,7 @@ void PlatformThread::SetName(const std::string& name) {
     set_thread_description_func(::GetCurrentThread(),
                                 base::UTF8ToWide(name).c_str());
   }
+#endif  // defined(WINUWP)
 
   // The debugger needs to be around to catch the name in the exception.  If
   // there isn't a debugger, we are just needlessly throwing an exception.

@@ -12,6 +12,7 @@
 #include "base/strings/string_util.h"
 #include "base/threading/scoped_blocking_call.h"
 #include "base/win/shlwapi.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 
@@ -209,7 +210,11 @@ bool FileEnumerator::IsPatternMatched(const FilePath& src) const {
     case FolderSearchPolicy::ALL:
       // ALL policy enumerates all files, we need to check pattern match
       // manually.
+#if defined(WINUWP)
+      UWP_API_ERROR("PathMatchSpec");
+#else
       return PathMatchSpec(src.value().c_str(), pattern_.c_str()) == TRUE;
+#endif // defined(WINUWP)
   }
   NOTREACHED();
   return false;

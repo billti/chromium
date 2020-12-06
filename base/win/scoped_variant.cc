@@ -15,6 +15,8 @@
 #include "base/win/propvarutil.h"
 #include "base/win/variant_util.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 namespace win {
 
@@ -176,7 +178,11 @@ int ScopedVariant::Compare(const VARIANT& other, bool ignore_case) const {
 
   // 5. Otherwise returns the lexicographical comparison of the values held by
   //    the two VARIANTS that share the same VARTYPE.
+#if defined(WINUWP)
+UWP_API_ERROR("VariantCompare");
+#else
   return ::VariantCompare(var_, other);
+#endif  // defined(WINUWP)
 }
 
 void ScopedVariant::Set(const wchar_t* str) {

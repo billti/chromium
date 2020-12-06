@@ -503,7 +503,6 @@ win_toolchains("nacl_win64") {
 }
 
 # WinUWP toolchains. Only define these when targeting them.
-
 if (target_os == "winuwp") {
   assert(target_cpu == "x64" || target_cpu == "x86" || target_cpu == "arm" ||
          target_cpu == "arm64")
@@ -517,14 +516,30 @@ if (target_os == "winuwp") {
                                            "environment.store_" + target_cpu,
                                          ],
                                          "scope")
-
   msvc_toolchain("uwp_" + target_cpu) {
     environment = "environment.store_" + target_cpu
-    cl = "${goma_prefix}\"${store_cpu_toolchain_data.vc_bin_dir}/cl.exe\""
+    prefix = rebase_path("$clang_base_path/bin", root_build_dir)
+    cl = "${clang_prefix}$prefix/${clang_cl}"
+    _clang_lib_dir =
+        rebase_path("$clang_base_path/lib/clang/$clang_version/lib/windows",
+                    root_build_dir)
+    # Flip the slashes so that copy/paste of the command works.
+    cl = string_replace(cl, "/", "\\")
+
+    # And to match the other -libpath flags.
+    _clang_lib_dir = string_replace(_clang_lib_dir, "/", "\\")
+
+    sys_include_flags = "${store_cpu_toolchain_data.include_flags_imsvc}"
+    sys_lib_flags =
+        "-libpath:$_clang_lib_dir ${store_cpu_toolchain_data.libpath_flags}"
+
+    # Bug where double quoted path includes a trailing backslash (which escapes the closing quote)
+    sys_lib_flags = string_replace(sys_lib_flags, "\\store\\\"", "\\store\"")
+
     toolchain_args = {
+      is_clang = true
       current_os = "winuwp"
       current_cpu = target_cpu
-      is_clang = false
     }
   }
 }

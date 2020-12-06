@@ -8,6 +8,7 @@
 #include "base/notreached.h"
 #include "base/win/patch_util.h"
 #include "base/win/pe_image.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 namespace win {
@@ -60,7 +61,11 @@ bool InterceptEnumCallback(const base::win::PEImage& image,
 
   DCHECK(module);
 
+#if defined(WINUWP)
+  if (name && (0 == _stricmp(name, intercept_information->function_name))) {
+#else
   if (name && (0 == lstrcmpiA(name, intercept_information->function_name))) {
+#endif
     // Save the old pointer.
     if (intercept_information->old_function) {
       *(intercept_information->old_function) = GetIATFunction(iat);
@@ -182,6 +187,9 @@ DWORD IATPatchFunction::Patch(const wchar_t* module,
                               const char* imported_from_module,
                               const char* function_name,
                               void* new_function) {
+#if defined(WINUWP)
+  UWP_API_ERROR("LoadLibrary");
+#else
   HMODULE module_handle = LoadLibraryW(module);
   if (!module_handle) {
     NOTREACHED();
@@ -197,6 +205,7 @@ DWORD IATPatchFunction::Patch(const wchar_t* module,
   }
 
   return error;
+#endif // defined(WINUWP)
 }
 
 DWORD IATPatchFunction::PatchFromModule(HMODULE module,

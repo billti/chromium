@@ -27,6 +27,12 @@ class ScopedOSInfoOverride;
 namespace base {
 namespace win {
 
+// WIN10 macro may be defined already, causing issues below.
+// TODO: See if build\config\win\BUILD.gn really needs to define this.
+#if defined(WINUWP) && defined(WIN10)
+#undef WIN10
+#endif
+
 // The running version of Windows.  This is declared outside OSInfo for
 // syntactic sugar reasons; see the declaration of GetVersion() below.
 // NOTE: Keep these in order so callers can do things like

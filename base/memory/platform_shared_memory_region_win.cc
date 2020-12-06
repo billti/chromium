@@ -19,6 +19,7 @@
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/windows_version.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 namespace subtle {
@@ -55,6 +56,9 @@ size_t GetMemorySectionSize(void* address) {
 // Checks if the section object is safe to map. At the moment this just means
 // it's not an image section.
 bool IsSectionSafeToMap(HANDLE handle) {
+#if defined(WINUWP)
+  UWP_API_ERROR("NtQuerySection");
+#else
   static NtQuerySectionType nt_query_section_func =
       reinterpret_cast<NtQuerySectionType>(
           ::GetProcAddress(::GetModuleHandle(L"ntdll.dll"), "NtQuerySection"));
@@ -65,9 +69,11 @@ bool IsSectionSafeToMap(HANDLE handle) {
   ULONG status =
       nt_query_section_func(handle, SectionBasicInformation, &basic_information,
                             sizeof(basic_information), nullptr);
+
   if (status)
     return false;
   return (basic_information.Attributes & SEC_IMAGE) != SEC_IMAGE;
+#endif  // defined(WINUWP)
 }
 
 // Returns a HANDLE on success and |nullptr| on failure.

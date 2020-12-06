@@ -1,0 +1,91 @@
+assert(is_winuwp)
+
+# Build the Appx package with something like:
+#
+#   ninja -C <outdir> edtium:appx
+#
+# For local development, you'll then need to register it with something like:
+#
+#   PowerShell -command "Add-AppxPackage -Register <outdir>\edtium\AppxManifest.xml"
+#
+# To remove again later (e.g. to clean-up, or reregister without a version bump)
+#
+#  Get-AppxPackage -name Microsoft.Edtium
+#  Remove-AppxPackage -Package <PackageFullName from above>
+#
+# To actually build the AppX package, something like:
+#
+#   MakeAppx pack /d <outdir>\edtium /p Edtium.appx
+#
+
+copy("appx") {
+  deps = [
+    ":edtium",
+    "//third_party/angle:libEGL",
+    "//third_party/angle:libGLESv2",
+    "//third_party/zlib:zlib",
+    "//v8:v8",
+    "//v8:v8_libplatform",
+    "//v8:v8_libbase",
+    "//third_party/abseil-cpp:absl",
+    "//third_party/icu:icudata",
+    # Need the below to be able to copy libc++.dll
+    "//build/config:executable_deps",
+  ]
+
+  # TODO: All the below is only necessary on a debug component build. Need to
+  # make a separate set conditional on the build type.
+  sources = [
+    "$root_out_dir/edtium.exe",
+    "$root_out_dir/libc++.dll",
+    "AppxManifest.xml",
+    "Assets/StoreLogo.png",
+    "Assets/SplashScreen.scale-200.png",
+    "Assets/Square150x150Logo.scale-200.png",
+    "Assets/Square44x44Logo.scale-200.png",
+
+    # ANGLE binaries
+    "$root_out_dir/libEGL.dll",
+    "$root_out_dir/libGLESv2.dll",
+    "$root_out_dir/zlib.dll",
+    "$root_out_dir/absl.dll",
+
+    # V8 binaries
+    "$root_out_dir/v8.dll",
+    "$root_out_dir/v8_libbase.dll",
+    "$root_out_dir/v8_libplatform.dll",
+    "$root_out_dir/icui18n.dll",
+    "$root_out_dir/icuuc.dll",
+    "$root_out_dir/icudtl.dat",
+    "$root_out_dir/snapshot_blob.bin",
+  ]
+  outputs = ["$root_out_dir/edtium/{{source_file_part}}"]
+}
+
+executable("edtium") {
+  deps = [
+    "//third_party/angle:libEGL",
+    "//third_party/angle:libGLESv2",
+    "//third_party/angle:includes",
+    "//v8:v8",
+    "//v8:v8_libplatform",
+    "//v8:v8_libbase",
+  ]
+
+  sources = [
+    "main.cc", 
+    "main.h",
+    "app.cc",
+    "math-helper.h",
+    "simple-renderer.cc",
+    "simple-renderer.h",
+  ]
+
+  libs = [
+    "libEGL.dll.lib",
+    "libGLESv2.dll.lib"
+  ]
+
+  configs -= [ "//build/config/win:console" ]
+  configs += [ "//build/config/win:windowed" ]
+}

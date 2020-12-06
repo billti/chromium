@@ -20,6 +20,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/win/registry.h"
 
+#include "base/win/uwp_exception.h"
+
 #if !defined(__clang__) && _MSC_FULL_VER < 191125507
 #error VS 2017 Update 3.2 or higher is required
 #endif
@@ -214,6 +216,9 @@ OSInfo::VersionNumber OSInfo::Kernel32VersionNumber() const {
 // compatibility mode for a down-level version of the OS, the file version of
 // kernel32 will still be the "real" version.
 base::Version OSInfo::Kernel32BaseVersion() const {
+#if defined(WINUWP)
+UWP_API_ERROR("FileVersionInfo");
+#else
   static const NoDestructor<base::Version> version([] {
     std::unique_ptr<FileVersionInfoWin> file_version_info =
         FileVersionInfoWin::CreateFileVersionInfoWin(
@@ -229,6 +234,7 @@ base::Version OSInfo::Kernel32BaseVersion() const {
     return file_version_info->GetFileVersion();
   }());
   return *version;
+#endif  // defined(WINUWP)
 }
 
 std::string OSInfo::processor_model_name() {

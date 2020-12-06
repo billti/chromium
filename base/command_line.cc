@@ -22,6 +22,7 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include <shellapi.h>
+#include "base/win/uwp_exception.h"
 
 #include "base/strings/string_util_win.h"
 #endif  // defined(OS_WIN)
@@ -467,8 +468,13 @@ void CommandLine::ParseFromString(StringPieceType command_line) {
     return;
   raw_command_line_string_ = command_line;
 
+#if defined(WINUWP)
+  // See parsing at https://docs.microsoft.com/en-us/windows/win32/api/shellapi/nf-shellapi-commandlinetoargvw
+  UWP_API_ERROR("CommandLineToArgvW");
+#else
   int num_args = 0;
   wchar_t** args = NULL;
+
   // When calling CommandLineToArgvW, use the apiset if available.
   // Doing so will bypass loading shell32.dll on Win8+.
   HMODULE downlevel_shell32_dll =
@@ -495,6 +501,7 @@ void CommandLine::ParseFromString(StringPieceType command_line) {
 
   if (downlevel_shell32_dll)
     ::FreeLibrary(downlevel_shell32_dll);
+#endif
 }
 #endif  // defined(OS_WIN)
 

@@ -114,7 +114,10 @@ bool RecommitSystemPagesInternal(void* address,
 }
 
 void DiscardSystemPagesInternal(void* address, size_t length) {
-  // On Windows, discarded pages are not returned to the system immediately and
+#if defined(WINUWP)
+  DWORD ret = DiscardVirtualMemory(address, length);
+#else
+    // On Windows, discarded pages are not returned to the system immediately and
   // not guaranteed to be zeroed when returned to the application.
   using DiscardVirtualMemoryFunction =
       DWORD(WINAPI*)(PVOID virtualAddress, SIZE_T size);
@@ -131,6 +134,8 @@ void DiscardSystemPagesInternal(void* address, size_t length) {
   if (discard_virtual_memory) {
     ret = discard_virtual_memory(address, length);
   }
+#endif // defined(WINUWP)
+
   // DiscardVirtualMemory is buggy in Win10 SP0, so fall back to MEM_RESET on
   // failure.
   if (ret) {

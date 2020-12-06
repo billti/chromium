@@ -8,7 +8,10 @@
 #include <cfgmgr32.h>
 #include <initguid.h>
 #include <powrprof.h>
+
+#if !defined(WINUWP)
 #include <shobjidl.h>  // Must be before propkey.
+#endif
 
 #include <inspectable.h>
 #include <mdmregistration.h>
@@ -55,12 +58,15 @@
 #include "base/win/shlwapi.h"
 #include "base/win/windows_version.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 namespace win {
 
 namespace {
 
 // Sets the value of |property_key| to |property_value| in |property_store|.
+#if !defined(WINUWP)
 bool SetPropVariantValueForPropertyStore(
     IPropertyStore* property_store,
     const PROPERTYKEY& property_key,
@@ -83,6 +89,7 @@ bool SetPropVariantValueForPropertyStore(
 #endif
   return false;
 }
+#endif  // !defined(WINUWP)
 
 void __cdecl ForceCrashOnSigAbort(int) {
   *((volatile int*)nullptr) = 0x1337;
@@ -91,7 +98,11 @@ void __cdecl ForceCrashOnSigAbort(int) {
 // Returns the current platform role. We use the PowerDeterminePlatformRoleEx
 // API for that.
 POWER_PLATFORM_ROLE GetPlatformRole() {
+#if defined(WINUWP)
+UWP_API_ERROR("PowerDeterminePlatformRoleEx");
+#else
   return PowerDeterminePlatformRoleEx(POWER_PLATFORM_ROLE_V2);
+#endif  // defined(WINUWP)
 }
 
 // Method used for Windows 8.1 and later.
@@ -99,6 +110,7 @@ POWER_PLATFORM_ROLE GetPlatformRole() {
 // function from user32.dll, so it won't fail to load in runtime. For earlier
 // Windows versions GetProcAddress will return null and report failure so that
 // callers can fall back on the deprecated SetProcessDPIAware.
+#if !defined(WINUWP)
 bool SetProcessDpiAwarenessWrapper(PROCESS_DPI_AWARENESS value) {
   if (!IsUser32AndGdi32Available())
     return false;
@@ -124,6 +136,7 @@ bool SetProcessDpiAwarenessWrapper(PROCESS_DPI_AWARENESS value) {
                                               "platforms >= Windows 8.1";
   return false;
 }
+#endif  // !defined(WINUWP)
 
 // Enable V2 per-monitor high-DPI support for the process. This will cause
 // Windows to scale dialogs, comctl32 controls, context menus, and non-client
@@ -131,6 +144,9 @@ bool SetProcessDpiAwarenessWrapper(PROCESS_DPI_AWARENESS value) {
 // available (i.e., prior to Windows 10 1703) or fails, returns false.
 // https://docs.microsoft.com/en-us/windows/desktop/hidpi/dpi-awareness-context
 bool EnablePerMonitorV2() {
+#if defined(WINUWP)
+UWP_API_ERROR("SetProcessDpiAwarenessContext");
+#else
   if (!IsUser32AndGdi32Available())
     return false;
 
@@ -147,14 +163,22 @@ bool EnablePerMonitorV2() {
          " >= Windows 10 Redstone 2";
 
   return false;
+#endif  // defined(WINUWP)
 }
 
 bool* GetDomainEnrollmentStateStorage() {
+#if defined(WINUWP)
+UWP_API_ERROR("OS_DOMAINMEMBER");
+#else
   static bool state = IsOS(OS_DOMAINMEMBER);
   return &state;
+#endif  // defined(WINUWP)
 }
 
 bool* GetRegisteredWithManagementStateStorage() {
+#if defined(WINUWP)
+UWP_API_ERROR("IsDeviceRegisteredWithManagementFunction");
+#else
   static bool state = []() {
     // Mitigate the issues caused by loading DLLs on a background thread
     // (http://crbug/973868).
@@ -181,6 +205,7 @@ bool* GetRegisteredWithManagementStateStorage() {
   }();
 
   return &state;
+#endif  // defined(WINUWP)
 }
 
 NativeLibrary PinUser32Internal(NativeLibraryLoadError* error) {
@@ -200,6 +225,9 @@ NativeLibrary PinUser32Internal(NativeLibraryLoadError* error) {
 // it to always return UserInteractionMode_Touch which as per documentation
 // indicates tablet mode.
 bool IsWindows10TabletMode(HWND hwnd) {
+#if defined(WINUWP)
+UWP_API_ERROR("IUIViewSettingsInterop");
+#else
   if (GetVersion() < Version::WIN10)
     return false;
 
@@ -226,6 +254,7 @@ bool IsWindows10TabletMode(HWND hwnd) {
       ABI::Windows::UI::ViewManagement::UserInteractionMode_Mouse;
   view_settings->get_UserInteractionMode(&mode);
   return mode == ABI::Windows::UI::ViewManagement::UserInteractionMode_Touch;
+#endif  // defined(WINUWP)
 }
 
 // Returns true if a physical keyboard is detected on Windows 8 and up.
@@ -234,6 +263,9 @@ bool IsWindows10TabletMode(HWND hwnd) {
 // it won't work if there are devices which expose keyboard interfaces which
 // are attached to the machine.
 bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
+#if defined(WINUWP)
+UWP_API_ERROR("GetSystemMetrics");
+#else
   bool result = false;
 
   if (GetVersion() < Version::WIN8) {
@@ -356,6 +388,7 @@ bool IsKeyboardPresentOnSlate(HWND hwnd, std::string* reason) {
     }
   }
   return result;
+#endif  // defined(WINUWP)
 }
 
 static bool g_crash_on_process_detach = false;
@@ -407,6 +440,7 @@ bool UserAccountControlIsEnabled() {
   return (uac_enabled != 0);
 }
 
+#if !defined(WINUWP)
 bool SetBooleanValueForPropertyStore(IPropertyStore* property_store,
                                      const PROPERTYKEY& property_key,
                                      bool property_bool_value) {
@@ -458,6 +492,7 @@ bool SetAppIdForPropertyStore(IPropertyStore* property_store,
   return SetStringValueForPropertyStore(property_store, PKEY_AppUserModel_ID,
                                         app_id);
 }
+#endif  // !defined(WINUWP)
 
 static const wchar_t kAutoRunKeyPath[] =
     L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
@@ -522,6 +557,9 @@ bool IsTabletDevice(std::string* reason, HWND hwnd) {
 // input configuration of the device and can be manually triggered by the user
 // independently from the hardware state.
 bool IsDeviceUsedAsATablet(std::string* reason) {
+#if defined(WINUWP)
+UWP_API_ERROR("GetSystemMetrics and GetAutoRotationState");
+#else
   if (GetVersion() < Version::WIN8) {
     if (reason)
       *reason = "Tablet device detection not supported below Windows 8\n";
@@ -582,6 +620,7 @@ bool IsDeviceUsedAsATablet(std::string* reason) {
       *reason += "Device role is not mobile or slate.\n";
   }
   return is_tablet;
+#endif  // defined(WINUWP)
 }
 
 bool IsEnrolledToDomain() {
@@ -592,6 +631,7 @@ bool IsDeviceRegisteredWithManagement() {
   return *GetRegisteredWithManagementStateStorage();
 }
 
+#if !defined(WINUWP)
 bool IsUser32AndGdi32Available() {
   static auto is_user32_and_gdi32_available = []() {
     // If win32k syscalls aren't disabled, then user32 and gdi32 are available.
@@ -620,8 +660,12 @@ bool IsUser32AndGdi32Available() {
   }();
   return is_user32_and_gdi32_available;
 }
+#endif  // !defined(WINUWP)
 
 bool GetLoadedModulesSnapshot(HANDLE process, std::vector<HMODULE>* snapshot) {
+#if defined(WINUWP)
+UWP_API_ERROR("EnumProcessModules");
+#else
   DCHECK(snapshot);
   DCHECK_EQ(0u, snapshot->size());
   snapshot->resize(128);
@@ -662,19 +706,31 @@ bool GetLoadedModulesSnapshot(HANDLE process, std::vector<HMODULE>* snapshot) {
 
   DLOG(ERROR) << "Failed to enumerate modules.";
   return false;
+#endif  // defined(WINUWP)
 }
 
 void EnableFlicks(HWND hwnd) {
+#if defined(WINUWP)
+UWP_API_ERROR("RemoveProp");
+#else
   ::RemoveProp(hwnd, MICROSOFT_TABLETPENSERVICE_PROPERTY);
+#endif  // defined(WINUWP)
 }
 
 void DisableFlicks(HWND hwnd) {
+#if defined(WINUWP)
+UWP_API_ERROR("SetProp");
+#else
   ::SetProp(hwnd, MICROSOFT_TABLETPENSERVICE_PROPERTY,
             reinterpret_cast<HANDLE>(TABLET_DISABLE_FLICKS |
                                      TABLET_DISABLE_FLICKFALLBACKKEYS));
+#endif  // defined(WINUWP)
 }
 
 bool IsProcessPerMonitorDpiAware() {
+#if defined(WINUWP)
+UWP_API_ERROR("GetProcessCpiAwareness");
+#else
   enum class PerMonitorDpiAware {
     UNKNOWN = 0,
     PER_MONITOR_DPI_UNAWARE,
@@ -697,9 +753,13 @@ bool IsProcessPerMonitorDpiAware() {
     }
   }
   return per_monitor_dpi_aware == PerMonitorDpiAware::PER_MONITOR_DPI_AWARE;
+#endif  // defined(WINUWP)
 }
 
 void EnableHighDPISupport() {
+#if defined(WINUWP)
+UWP_API_ERROR("SetProcessDpiAwareness");
+#else
   if (!IsUser32AndGdi32Available())
     return;
 
@@ -719,6 +779,7 @@ void EnableHighDPISupport() {
     BOOL result = ::SetProcessDPIAware();
     DCHECK(result) << "SetProcessDPIAware failed.";
   }
+#endif  // defined(WINUWP)
 }
 
 std::wstring WStringFromGUID(REFGUID rguid) {
@@ -749,6 +810,9 @@ void* GetUser32FunctionPointer(const char* function_name,
 }
 
 std::wstring GetWindowObjectName(HANDLE handle) {
+#if defined(WINUWP)
+UWP_API_ERROR("GetUserObjectInformation");
+#else
   // Get the size of the name.
   std::wstring object_name;
 
@@ -769,9 +833,13 @@ std::wstring GetWindowObjectName(HANDLE handle) {
   }
 
   return object_name;
+#endif  // defined(WINUWP)
 }
 
 bool IsRunningUnderDesktopName(WStringPiece desktop_name) {
+#if defined(WINUWP)
+UWP_API_ERROR("GetThreadDesktop");
+#else
   HDESK thread_desktop = ::GetThreadDesktop(::GetCurrentThreadId());
   if (!thread_desktop)
     return false;
@@ -779,11 +847,13 @@ bool IsRunningUnderDesktopName(WStringPiece desktop_name) {
   std::wstring current_desktop_name = GetWindowObjectName(thread_desktop);
   return EqualsCaseInsensitiveASCII(AsStringPiece16(current_desktop_name),
                                     AsStringPiece16(desktop_name));
+#endif  // defined(WINUWP)
 }
 
 // This method is used to detect whether current session is a remote session.
 // See:
 // https://docs.microsoft.com/en-us/windows/desktop/TermServ/detecting-the-terminal-services-environment
+#if !defined(WINUWP)
 bool IsCurrentSessionRemote() {
   if (::GetSystemMetrics(SM_REMOTESESSION))
     return true;
@@ -807,6 +877,7 @@ bool IsCurrentSessionRemote() {
 
   return current_session_id != glass_session_id;
 }
+#endif  // !defined(WINUWP)
 
 ScopedDomainStateForTesting::ScopedDomainStateForTesting(bool state)
     : initial_state_(IsEnrolledToDomain()) {
