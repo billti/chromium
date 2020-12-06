@@ -6,6 +6,35 @@
 
 #include "base/threading/scoped_thread_priority.h"
 
+#if defined(WINUWP)
+namespace base {
+namespace win {
+
+bool ResolveCoreWinRTDelayload() {
+  return true;
+}
+
+HRESULT RoInitialize(RO_INIT_TYPE init_type) {
+  return ::RoInitialize(init_type);
+}
+
+void RoUninitialize() {
+  ::RoUninitialize();
+}
+
+HRESULT RoGetActivationFactory(HSTRING class_id,
+                               const IID& iid,
+                               void** out_factory) {
+  return ::RoGetActivationFactory(class_id, iid, out_factory);
+}
+
+HRESULT RoActivateInstance(HSTRING class_id, IInspectable** instance) {
+  return ::RoActivateInstance(class_id, instance);
+}
+
+}  // namespace win
+}  // namespace base
+#else
 namespace {
 
 FARPROC LoadComBaseFunction(const char* function_name) {
@@ -89,3 +118,4 @@ HRESULT RoActivateInstance(HSTRING class_id, IInspectable** instance) {
 
 }  // namespace win
 }  // namespace base
+#endif  // defined(WINUWP)

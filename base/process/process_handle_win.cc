@@ -9,6 +9,7 @@
 
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_version.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 
@@ -32,6 +33,9 @@ ProcessId GetProcId(ProcessHandle process) {
 }
 
 ProcessId GetParentProcessId(ProcessHandle process) {
+#if defined(WINUWP)
+  UWP_API_ERROR("PROCESSENTRY32");
+#else
   ProcessId child_pid = GetProcId(process);
   PROCESSENTRY32 process_entry;
       process_entry.dwSize = sizeof(PROCESSENTRY32);
@@ -47,6 +51,7 @@ ProcessId GetParentProcessId(ProcessHandle process) {
   // TODO(zijiehe): To match other platforms, -1 (UINT32_MAX) should be returned
   // if |child_id| cannot be found in the |snapshot|.
   return 0u;
+#endif // defined(WINUWP)
 }
 
 }  // namespace base

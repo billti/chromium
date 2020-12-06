@@ -15,6 +15,8 @@
 #include "base/strings/utf_string_conversions.h"
 #include "base/threading/scoped_blocking_call.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 
 namespace {
@@ -60,10 +62,14 @@ bool AreSearchFlagsAvailable() {
   // https://msdn.microsoft.com/en-us/library/windows/desktop/ms684179(v=vs.85).aspx
   // The LOAD_LIBRARY_SEARCH_* flags are used in the LoadNativeLibraryHelper
   // method.
+#if defined(WINUWP)
+  return true;
+#else
   static const auto add_dll_dir_func =
       reinterpret_cast<decltype(AddDllDirectory)*>(
           GetProcAddress(GetModuleHandle(L"kernel32.dll"), "AddDllDirectory"));
   return !!add_dll_dir_func;
+#endif // defined(WINUWP)
 }
 
 // A helper method to encode the library loading result to enum
@@ -86,6 +92,9 @@ LoadLibraryResult GetLoadLibraryResult(bool are_search_flags_available,
 
 NativeLibrary LoadNativeLibraryHelper(const FilePath& library_path,
                                       NativeLibraryLoadError* error) {
+#if defined(WINUWP)
+  UWP_API_ERROR("LoadLibraryExW");
+#else
   // LoadLibrary() opens the file off disk and acquires the LoaderLock, hence
   // must not be called from DllMain.
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
@@ -142,10 +151,14 @@ NativeLibrary LoadNativeLibraryHelper(const FilePath& library_path,
       GetLoadLibraryResult(are_search_flags_available, !!module));
 
   return module;
+#endif // defined(WINUWP)
 }
 
 NativeLibrary LoadSystemLibraryHelper(const FilePath& library_path,
                                       NativeLibraryLoadError* error) {
+#if defined(WINUWP)
+  UWP_API_ERROR("GetModuleHandleExW");
+#else
   // GetModuleHandleEx and subsequently LoadLibraryEx acquire the LoaderLock,
   // hence must not be called from Dllmain.
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
@@ -167,6 +180,7 @@ NativeLibrary LoadSystemLibraryHelper(const FilePath& library_path,
   }
 
   return module;
+#endif // defined(WINUWP)
 }
 
 FilePath GetSystemLibraryName(FilePath::StringPieceType name) {
@@ -220,6 +234,10 @@ NativeLibrary LoadSystemLibrary(FilePath::StringPieceType name,
 
 NativeLibrary PinSystemLibrary(FilePath::StringPieceType name,
                                NativeLibraryLoadError* error) {
+#if defined(WINUWP)
+  UWP_API_ERROR("GetModuleHandleExW");
+#else
+
   FilePath library_path = GetSystemLibraryName(name);
   if (library_path.empty()) {
     if (error)
@@ -253,6 +271,7 @@ NativeLibrary PinSystemLibrary(FilePath::StringPieceType name,
     error->code = ::GetLastError();
   // Return nullptr since we failed to pin the module.
   return nullptr;
+#endif  // defined(WINUWP)
 }
 
 }  // namespace base

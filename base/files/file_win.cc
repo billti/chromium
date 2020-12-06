@@ -416,8 +416,13 @@ void File::DoInitialize(const FilePath& path, uint32_t flags) {
   if (flags & FLAG_SEQUENTIAL_SCAN)
     create_flags |= FILE_FLAG_SEQUENTIAL_SCAN;
 
+#if defined(WINUWP)
+  file_.Set(CreateFileFromAppW(path.value().c_str(), access, sharing, NULL, disposition,
+                       create_flags, NULL));
+#else
   file_.Set(CreateFile(path.value().c_str(), access, sharing, NULL, disposition,
                        create_flags, NULL));
+#endif // defined(WINUWP)
 
   if (file_.IsValid()) {
     error_details_ = FILE_OK;

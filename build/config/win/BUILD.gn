@@ -237,6 +237,9 @@ config("runtime_library") {
     }
     cflags_cc += [ "/EHsc" ]
 
+    # TODO(billti): Remove some warning temporarily while commenting out code to get UWP working
+    cflags += [ "-Wno-unused-function", "-Wno-unused-variable" ]
+
     # This warning is given because the linker cannot tell the difference
     # between consuming WinRT APIs versus authoring WinRT within static
     # libraries as such this warning is always given by the linker. Since
@@ -541,6 +544,9 @@ config("console") {
 }
 config("windowed") {
   ldflags = [ "/SUBSYSTEM:WINDOWS$subsystem_version_suffix" ]
+  if (is_winuwp) {
+    ldflags += ["/APPCONTAINER"]
+  }
 }
 
 # Incremental linking ----------------------------------------------------------

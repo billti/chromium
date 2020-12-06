@@ -24,6 +24,8 @@
 #include "base/win/shlwapi.h"
 #include "base/win/windows_version.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 namespace win {
 
@@ -69,6 +71,9 @@ class RegKey::Watcher : public ObjectWatcher::Delegate {
 };
 
 bool RegKey::Watcher::StartWatching(HKEY key, ChangeCallback callback) {
+#if defined(WINUWP)
+UWP_API_ERROR("CreateEvent, REG_NOTIFY_*");
+#else
   DCHECK(key);
   DCHECK(callback_.is_null());
 
@@ -92,6 +97,7 @@ bool RegKey::Watcher::StartWatching(HKEY key, ChangeCallback callback) {
 
   callback_ = std::move(callback);
   return object_watcher_.StartWatchingOnce(watch_event_.Get(), this);
+#endif  // defined(WINUWP)
 }
 
 // RegKey ----------------------------------------------------------------------
@@ -141,6 +147,9 @@ LONG RegKey::CreateWithDisposition(HKEY rootkey,
                                    const wchar_t* subkey,
                                    DWORD* disposition,
                                    REGSAM access) {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_OPTION_*");
+#else
   DCHECK(rootkey && subkey && access && disposition);
   HKEY subhkey = nullptr;
   LONG result =
@@ -153,9 +162,13 @@ LONG RegKey::CreateWithDisposition(HKEY rootkey,
   }
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegCreateKeyEx");
+#else
   DCHECK(name && access);
   // After the application has accessed an alternate registry view using one of
   // the [KEY_WOW64_32KEY / KEY_WOW64_64KEY] flags, all subsequent operations
@@ -176,9 +189,13 @@ LONG RegKey::CreateKey(const wchar_t* name, REGSAM access) {
   }
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   DCHECK(rootkey && subkey && access);
   HKEY subhkey = nullptr;
 
@@ -190,9 +207,13 @@ LONG RegKey::Open(HKEY rootkey, const wchar_t* subkey, REGSAM access) {
   }
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::OpenKey(const wchar_t* relative_key_name, REGSAM access) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   DCHECK(relative_key_name && access);
   // After the application has accessed an alternate registry view using one of
   // the [KEY_WOW64_32KEY / KEY_WOW64_64KEY] flags, all subsequent operations
@@ -214,14 +235,19 @@ LONG RegKey::OpenKey(const wchar_t* relative_key_name, REGSAM access) {
     wow64access_ = access & kWow64AccessMask;
   }
   return result;
+#endif  // defined(WINUWP)
 }
 
 void RegKey::Close() {
+#if defined(WINUWP)
+UWP_API_ERROR("RegCloseKey");
+#else
   if (key_) {
     ::RegCloseKey(key_);
     key_ = nullptr;
     wow64access_ = 0;
   }
+#endif  // defined(WINUWP)
 }
 
 // TODO(wfh): Remove this and other unsafe methods. See http://crbug.com/375400
@@ -240,19 +266,30 @@ HKEY RegKey::Take() {
 }
 
 bool RegKey::HasValue(const wchar_t* name) const {
+#if defined(WINUWP)
+UWP_API_ERROR("RegQueryValueEx");
+#else
   return RegQueryValueEx(key_, name, nullptr, nullptr, nullptr, nullptr) ==
          ERROR_SUCCESS;
+#endif  // defined(WINUWP)
 }
 
 DWORD RegKey::GetValueCount() const {
+#if defined(WINUWP)
+UWP_API_ERROR("RegQueryInfoKey");
+#else
   DWORD count = 0;
   LONG result =
       RegQueryInfoKey(key_, nullptr, nullptr, nullptr, nullptr, nullptr,
                       nullptr, &count, nullptr, nullptr, nullptr, nullptr);
   return (result == ERROR_SUCCESS) ? count : 0;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::GetValueNameAt(int index, std::wstring* name) const {
+#if defined(WINUWP)
+UWP_API_ERROR("RegEnumValue");
+#else
   wchar_t buf[256];
   DWORD bufsize = size(buf);
   LONG r = ::RegEnumValue(key_, index, buf, &bufsize, nullptr, nullptr, nullptr,
@@ -261,9 +298,13 @@ LONG RegKey::GetValueNameAt(int index, std::wstring* name) const {
     name->assign(buf, bufsize);
 
   return r;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::DeleteKey(const wchar_t* name) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   DCHECK(key_);
   DCHECK(name);
   HKEY subkey = nullptr;
@@ -277,9 +318,13 @@ LONG RegKey::DeleteKey(const wchar_t* name) {
   RegCloseKey(subkey);
 
   return RegDelRecurse(key_, name, wow64access_);
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::DeleteEmptyKey(const wchar_t* name) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   DCHECK(key_);
   DCHECK(name);
 
@@ -304,15 +349,23 @@ LONG RegKey::DeleteEmptyKey(const wchar_t* name) {
     return RegDeleteKeyEx(key_, name, wow64access_, 0);
 
   return ERROR_DIR_NOT_EMPTY;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::DeleteValue(const wchar_t* value_name) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegDeleteValue");
+#else
   DCHECK(key_);
   LONG result = RegDeleteValue(key_, value_name);
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::ReadValueDW(const wchar_t* name, DWORD* out_value) const {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_DWORD");
+#else
   DCHECK(out_value);
   DWORD type = REG_DWORD;
   DWORD size = sizeof(DWORD);
@@ -326,9 +379,13 @@ LONG RegKey::ReadValueDW(const wchar_t* name, DWORD* out_value) const {
   }
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::ReadInt64(const wchar_t* name, int64_t* out_value) const {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_QWORD");
+#else
   DCHECK(out_value);
   DWORD type = REG_QWORD;
   int64_t local_value = 0;
@@ -343,9 +400,13 @@ LONG RegKey::ReadInt64(const wchar_t* name, int64_t* out_value) const {
   }
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::ReadValue(const wchar_t* name, std::wstring* out_value) const {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_SZ");
+#else
   DCHECK(out_value);
   const size_t kMaxStringLength = 1024;  // This is after expansion.
   // Use the one of the other forms of ReadValue if 1024 is too small for you.
@@ -373,19 +434,27 @@ LONG RegKey::ReadValue(const wchar_t* name, std::wstring* out_value) const {
   }
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::ReadValue(const wchar_t* name,
                        void* data,
                        DWORD* dsize,
                        DWORD* dtype) const {
+#if defined(WINUWP)
+UWP_API_ERROR("RegQueryValueEx");
+#else
   LONG result = RegQueryValueEx(key_, name, nullptr, dtype,
                                 reinterpret_cast<LPBYTE>(data), dsize);
   return result;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::ReadValues(const wchar_t* name,
                         std::vector<std::wstring>* values) {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_MULTI_SZ");
+#else
   values->clear();
 
   DWORD type = REG_MULTI_SZ;
@@ -413,31 +482,44 @@ LONG RegKey::ReadValues(const wchar_t* name,
     entry = entry_end + 1;
   }
   return 0;
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::WriteValue(const wchar_t* name, DWORD in_value) {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_DWORD");
+#else
   return WriteValue(name, &in_value, static_cast<DWORD>(sizeof(in_value)),
                     REG_DWORD);
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::WriteValue(const wchar_t* name, const wchar_t* in_value) {
+#if defined(WINUWP)
+UWP_API_ERROR("REG_SZ");
+#else
   return WriteValue(
       name, in_value,
       static_cast<DWORD>(sizeof(*in_value) *
                          (std::char_traits<wchar_t>::length(in_value) + 1)),
       REG_SZ);
+#endif  // defined(WINUWP)
 }
 
 LONG RegKey::WriteValue(const wchar_t* name,
                         const void* data,
                         DWORD dsize,
                         DWORD dtype) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegSetValueEx");
+#else
   DCHECK(data || !dsize);
 
   LONG result =
       RegSetValueEx(key_, name, 0, dtype,
                     reinterpret_cast<LPBYTE>(const_cast<void*>(data)), dsize);
   return result;
+#endif  // defined(WINUWP)
 }
 
 bool RegKey::StartWatching(ChangeCallback callback) {
@@ -452,6 +534,9 @@ bool RegKey::StartWatching(ChangeCallback callback) {
 
 // static
 LONG RegKey::RegDelRecurse(HKEY root_key, const wchar_t* name, REGSAM access) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   // First, see if the key can be deleted without having to recurse.
   LONG result = RegDeleteKeyEx(root_key, name, access, 0);
   if (result == ERROR_SUCCESS)
@@ -500,6 +585,7 @@ LONG RegKey::RegDelRecurse(HKEY root_key, const wchar_t* name, REGSAM access) {
   result = RegDeleteKeyEx(root_key, name, access, 0);
 
   return result;
+#endif  // defined(WINUWP)
 }
 
 // RegistryValueIterator ------------------------------------------------------
@@ -520,6 +606,9 @@ RegistryValueIterator::RegistryValueIterator(HKEY root_key,
 void RegistryValueIterator::Initialize(HKEY root_key,
                                        const wchar_t* folder_key,
                                        REGSAM wow64access) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   DCHECK_EQ(wow64access & ~kWow64AccessMask, static_cast<REGSAM>(0));
   LONG result =
       RegOpenKeyEx(root_key, folder_key, 0, KEY_READ | wow64access, &key_);
@@ -540,14 +629,22 @@ void RegistryValueIterator::Initialize(HKEY root_key,
   }
 
   Read();
+#endif  // defined(WINUWP)
 }
 
 RegistryValueIterator::~RegistryValueIterator() {
+#if defined(WINUWP)
+  std::terminate(); // noexcept so just terminate
+#else
   if (key_)
     ::RegCloseKey(key_);
+#endif  // defined(WINUWP)
 }
 
 DWORD RegistryValueIterator::ValueCount() const {
+#if defined(WINUWP)
+UWP_API_ERROR("RegQueryInfoKey");
+#else
   DWORD count = 0;
   LONG result =
       ::RegQueryInfoKey(key_, nullptr, nullptr, nullptr, nullptr, nullptr,
@@ -556,6 +653,7 @@ DWORD RegistryValueIterator::ValueCount() const {
     return 0;
 
   return count;
+#endif  // defined(WINUWP)
 }
 
 bool RegistryValueIterator::Valid() const {
@@ -568,6 +666,9 @@ void RegistryValueIterator::operator++() {
 }
 
 bool RegistryValueIterator::Read() {
+#if defined(WINUWP)
+UWP_API_ERROR("RegEnumValue");
+#else
   if (Valid()) {
     DWORD capacity = static_cast<DWORD>(name_.capacity());
     DWORD name_size = capacity;
@@ -605,6 +706,7 @@ bool RegistryValueIterator::Read() {
   value_[0] = '\0';
   value_size_ = 0;
   return false;
+#endif  // defined(WINUWP)
 }
 
 // RegistryKeyIterator --------------------------------------------------------
@@ -621,11 +723,18 @@ RegistryKeyIterator::RegistryKeyIterator(HKEY root_key,
 }
 
 RegistryKeyIterator::~RegistryKeyIterator() {
+#if defined(WINUWP)
+  std::terminate(); // noexcept
+#else
   if (key_)
     ::RegCloseKey(key_);
+#endif  // defined(WINUWP)
 }
 
 DWORD RegistryKeyIterator::SubkeyCount() const {
+#if defined(WINUWP)
+UWP_API_ERROR("RegQueryInfoKey");
+#else
   DWORD count = 0;
   LONG result =
       ::RegQueryInfoKey(key_, nullptr, nullptr, nullptr, &count, nullptr,
@@ -634,6 +743,7 @@ DWORD RegistryKeyIterator::SubkeyCount() const {
     return 0;
 
   return count;
+#endif  // defined(WINUWP)
 }
 
 bool RegistryKeyIterator::Valid() const {
@@ -646,6 +756,9 @@ void RegistryKeyIterator::operator++() {
 }
 
 bool RegistryKeyIterator::Read() {
+#if defined(WINUWP)
+UWP_API_ERROR("RegEnumKeyEx");
+#else
   if (Valid()) {
     DWORD ncount = static_cast<DWORD>(size(name_));
     FILETIME written;
@@ -657,11 +770,15 @@ bool RegistryKeyIterator::Read() {
 
   name_[0] = '\0';
   return false;
+#endif  // defined(WINUWP)
 }
 
 void RegistryKeyIterator::Initialize(HKEY root_key,
                                      const wchar_t* folder_key,
                                      REGSAM wow64access) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegOpenKeyEx");
+#else
   DCHECK_EQ(wow64access & ~kWow64AccessMask, static_cast<REGSAM>(0));
   LONG result =
       RegOpenKeyEx(root_key, folder_key, 0, KEY_READ | wow64access, &key_);
@@ -682,6 +799,7 @@ void RegistryKeyIterator::Initialize(HKEY root_key,
   }
 
   Read();
+#endif  // defined(WINUWP)
 }
 
 }  // namespace win

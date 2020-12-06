@@ -16,6 +16,7 @@
 #include "base/numerics/safe_conversions.h"
 #include "base/trace_event/base_tracing.h"
 #include "base/tracing_buildflags.h"
+#include "base/win/uwp_exception.h"
 
 #if BUILDFLAG(ENABLE_BASE_TRACING)
 #include "third_party/perfetto/protos/perfetto/trace/track_event/chrome_message_pump.pbzero.h"
@@ -93,16 +94,21 @@ void MessagePumpWin::Quit() {
 // MessagePumpForUI public:
 
 MessagePumpForUI::MessagePumpForUI() {
+#if !defined(WINUWP)
   bool succeeded = message_window_.Create(
       BindRepeating(&MessagePumpForUI::MessageCallback, Unretained(this)));
   DCHECK(succeeded);
+#endif
 }
 
 MessagePumpForUI::~MessagePumpForUI() = default;
 
 void MessagePumpForUI::ScheduleWork() {
-  // This is the only MessagePumpForUI method which can be called outside of
-  // |bound_thread_|.
+#if defined(WINUWP)
+  UWP_API_ERROR("PostMessage");
+#else
+  // This is the only MessagePumpForUI method which
+  // can be called outside of |bound_thread_|.
 
   bool not_scheduled = false;
   if (!work_scheduled_.compare_exchange_strong(not_scheduled, true))
@@ -128,6 +134,7 @@ void MessagePumpForUI::ScheduleWork() {
                             MESSAGE_LOOP_PROBLEM_MAX);
   TRACE_EVENT_INSTANT0("base", "Chrome.MessageLoopProblem.MESSAGE_POST_ERROR",
                        TRACE_EVENT_SCOPE_THREAD);
+#endif  // defined(WINUWP)
 }
 
 void MessagePumpForUI::ScheduleDelayedWork(const TimeTicks& delayed_work_time) {
@@ -271,6 +278,9 @@ void MessagePumpForUI::WaitForWork(Delegate::NextWorkInfo next_work_info) {
                                                wait_flags);
 
     if (WAIT_OBJECT_0 == result) {
+#if defined(WINUWP)
+      UWP_API_ERROR("win::WmiComputerSystemInfo::Get");
+#else
       // A WM_* message is available.
       // If a parent child relationship exists between windows across threads
       // then their thread inputs are implicitly attached.
@@ -303,6 +313,7 @@ void MessagePumpForUI::WaitForWork(Delegate::NextWorkInfo next_work_info) {
       // has returned false. Reset |wait_flags| so that we wait for a *new*
       // message.
       wait_flags = 0;
+#endif  // defined(WINUWP)
     }
 
     DCHECK_NE(WAIT_FAILED, result) << GetLastError();
@@ -414,6 +425,9 @@ void MessagePumpForUI::ScheduleNativeTimer(
   if (delay_msec == 0) {
     ScheduleWork();
   } else {
+#if defined(WINUWP)
+    UWP_API_ERROR("SetTimer & USER_TIMER_MINIMUM & USER_TIMER_MAXIMUM");
+#else
     // TODO(gab): ::SetTimer()'s documentation claims it does this for us.
     // Consider removing this safety net.
     delay_msec = ClampToRange(delay_msec, UINT(USER_TIMER_MINIMUM),
@@ -437,18 +451,26 @@ void MessagePumpForUI::ScheduleNativeTimer(
                               MESSAGE_LOOP_PROBLEM_MAX);
     TRACE_EVENT_INSTANT0("base", "Chrome.MessageLoopProblem.SET_TIMER_ERROR",
                          TRACE_EVENT_SCOPE_THREAD);
+#endif  // defined(WINUWP)
   }
 }
 
 void MessagePumpForUI::KillNativeTimer() {
+#if defined(WINUWP)
+  UWP_API_ERROR("KillTimer");
+#else
   DCHECK(installed_native_timer_);
   const bool success =
       ::KillTimer(message_window_.hwnd(), reinterpret_cast<UINT_PTR>(this));
   DPCHECK(success);
   installed_native_timer_.reset();
+#endif // defined(WINUWP)
 }
 
 bool MessagePumpForUI::ProcessNextWindowsMessage() {
+#if defined(WINUWP)
+  UWP_API_ERROR("PeekMessage");
+#else
   DCHECK_CALLED_ON_VALID_THREAD(bound_thread_);
 
   MSG msg;
@@ -504,9 +526,13 @@ bool MessagePumpForUI::ProcessNextWindowsMessage() {
     more_work_is_plausible |= ProcessMessageHelper(msg);
 
   return more_work_is_plausible;
-}
+#endif  // defined(WINUWP)
+    }
 
 bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
+#if defined(WINUWP)
+  UWP_API_ERROR("TranslateMessage & DispatchMessage");
+#else
   DCHECK_CALLED_ON_VALID_THREAD(bound_thread_);
 
   TRACE_EVENT1("base,toplevel", "MessagePumpForUI::ProcessMessageHelper",
@@ -526,8 +552,10 @@ bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
   }
 
   // While running our main message pump, we discard kMsgHaveWork messages.
+#if !defined(WINUWP)
   if (msg.message == kMsgHaveWork && msg.hwnd == message_window_.hwnd())
     return ProcessPumpReplacementMessage();
+#endif
 
   const auto scoped_do_native_work = state_->delegate->BeginNativeWork();
 
@@ -539,6 +567,7 @@ bool MessagePumpForUI::ProcessMessageHelper(const MSG& msg) {
     observer.DidDispatchMSG(msg);
 
   return true;
+#endif  // defined(WINUWP)
 }
 
 bool MessagePumpForUI::ProcessPumpReplacementMessage() {
@@ -556,6 +585,9 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
   MSG msg;
   bool have_message = false;
   {
+#if defined(WINUWP)
+    UWP_API_ERROR("win::WmiComputerSystemInfo::Get");
+#else
     // ::PeekMessage may process internal events. Consider it native work.
     const auto scoped_do_native_work = state_->delegate->BeginNativeWork();
 
@@ -575,11 +607,14 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
 
     have_message = ::PeekMessage(&msg, nullptr, 0, 0,
                                  PM_REMOVE | PM_QS_ALLEVENTS) != FALSE;
+#endif  // defined(WINUWP)
   }
 
+#if !defined(WINUWP)
   // Expect no message or a message different than kMsgHaveWork.
   DCHECK(!have_message || kMsgHaveWork != msg.message ||
          msg.hwnd != message_window_.hwnd());
+#endif
 
   // Since we discarded a kMsgHaveWork message, we must update the flag.
   DCHECK(work_scheduled_);
@@ -590,6 +625,9 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
     return false;
 
   if (msg.message == WM_QUIT) {
+#if defined(WINUWP)
+    UWP_API_ERROR("PostQuitMessage");
+#else
     // If we're in a nested ::GetMessage() loop then we must let that loop see
     // the WM_QUIT in order for it to exit. If we're in DoRunLoop then the re-
     // posted WM_QUIT will be either ignored, or handled, by
@@ -608,6 +646,7 @@ bool MessagePumpForUI::ProcessPumpReplacementMessage() {
     // The return value is mostly irrelevant but return true like we would after
     // processing a QuitClosure() task.
     return true;
+#endif  // defined(WINUWP)
   } else if (msg.message == WM_TIMER &&
              msg.wParam == reinterpret_cast<UINT_PTR>(this)) {
     // This happens when a native nested loop invokes HandleWorkMessage() =>
@@ -696,6 +735,9 @@ HRESULT MessagePumpForIO::RegisterIOHandler(HANDLE file_handle,
 
 bool MessagePumpForIO::RegisterJobObject(HANDLE job_handle,
                                          IOHandler* handler) {
+#if defined(WINUWP)
+  UWP_API_ERROR("SetInformationJobObject");
+#else
   DCHECK_CALLED_ON_VALID_THREAD(bound_thread_);
 
   JOBOBJECT_ASSOCIATE_COMPLETION_PORT info;
@@ -704,6 +746,7 @@ bool MessagePumpForIO::RegisterJobObject(HANDLE job_handle,
   return ::SetInformationJobObject(job_handle,
                                    JobObjectAssociateCompletionPortInformation,
                                    &info, sizeof(info)) != FALSE;
+#endif  // defined(WINUWP)
 }
 
 //-----------------------------------------------------------------------------

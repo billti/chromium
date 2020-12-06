@@ -31,7 +31,7 @@
 #include "base/files/file_descriptor_watcher_posix.h"
 #endif
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
 #include "base/win/scoped_com_initializer.h"
 #endif
 
@@ -357,7 +357,7 @@ void Thread::ThreadMain() {
   }
 #endif
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
   std::unique_ptr<win::ScopedCOMInitializer> com_initializer;
   if (com_status_ != NONE) {
     com_initializer.reset(
@@ -389,7 +389,7 @@ void Thread::ThreadMain() {
   // Let the thread do extra cleanup.
   CleanUp();
 
-#if defined(OS_WIN)
+#if defined(OS_WIN) && !defined(WINUWP)
   com_initializer.reset();
 #endif
 

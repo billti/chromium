@@ -21,6 +21,8 @@
 #include "base/synchronization/lock.h"
 #include "build/build_config.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 namespace debug {
 
@@ -119,6 +121,9 @@ FilePath GetExePath() {
 }
 
 bool SymInitializeCurrentProc() {
+#if defined(WINUWP)
+  UWP_API_ERROR("SymInitialize");
+#else
   const HANDLE current_process = GetCurrentProcess();
   if (SymInitialize(current_process, nullptr, TRUE))
     return true;
@@ -138,9 +143,13 @@ bool SymInitializeCurrentProc() {
 
   g_init_error = GetLastError();
   return false;
+#endif // defined(WINUWP)
 }
 
 bool InitializeSymbols() {
+#if defined(WINUWP)
+  UWP_API_ERROR("SymCleanup & SymSetOptions & SymGetSearchPathW");
+#else
   if (g_initialized_symbols) {
     // Force a reinitialization. Will ensure any modules loaded after process
     // startup also get symbolized.
@@ -187,6 +196,7 @@ bool InitializeSymbols() {
 
   g_init_error = ERROR_SUCCESS;
   return true;
+#endif // defined(WINUWP)
 }
 
 // SymbolContext is a threadsafe singleton that wraps the DbgHelp Sym* family
@@ -226,6 +236,9 @@ class SymbolContext {
                            size_t count,
                            std::ostream* os,
                            const char* prefix_string) {
+#if defined(WINUWP)
+    UWP_API_ERROR("SYMBOL_INFO & IMAGEHLP_LINE64");
+#else
     AutoLock lock(lock_);
 
     for (size_t i = 0; (i < count) && os->good(); ++i) {
@@ -272,6 +285,7 @@ class SymbolContext {
       }
       (*os) << "\n";
     }
+#endif  // defined(WINUWP)
   }
 
  private:
@@ -312,6 +326,9 @@ StackTrace::StackTrace(const CONTEXT* context) {
 }
 
 void StackTrace::InitTrace(const CONTEXT* context_record) {
+#if defined(WINUWP)
+  UWP_API_ERROR("STACKFRAME64 & AddrModeFlat");
+#else
   // StackWalk64 modifies the register context in place, so we have to copy it
   // so that downstream exception handlers get the right context.  The incoming
   // context may have had more register state (YMM, etc) than we need to unwind
@@ -355,6 +372,7 @@ void StackTrace::InitTrace(const CONTEXT* context_record) {
 
   for (size_t i = count_; i < size(trace_); ++i)
     trace_[i] = NULL;
+#endif  // defined(WINUWP)
 }
 
 void StackTrace::PrintWithPrefix(const char* prefix_string) const {

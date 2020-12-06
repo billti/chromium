@@ -755,6 +755,10 @@ bool StackSamplingProfiler::IsSupportedForCurrentPlatform() {
     return false;
 #endif
 #if defined(OS_WIN)
+#if defined(WINUWP)
+  return false;
+#else
+
   // Do not start the profiler when Application Verifier is in use; running them
   // simultaneously can cause crashes and has no known use case.
   if (GetModuleHandleA(base::win::kApplicationVerifierDllName))
@@ -764,6 +768,7 @@ bool StackSamplingProfiler::IsSupportedForCurrentPlatform() {
   // https://crbug.com/1018291 and https://crbug.com/1113832.
   if (GetModuleHandleA("tmmon64.dll") || GetModuleHandleA("tmmonmgr64.dll"))
     return false;
+#endif  // defined(WINUWP)
 #endif
   return true;
 #else

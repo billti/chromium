@@ -8,6 +8,8 @@
 #include "base/files/file_util.h"
 #include "base/path_service.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 
 bool PathProvider(int key, FilePath* result) {
@@ -29,8 +31,12 @@ bool PathProvider(int key, FilePath* result) {
     case DIR_TEMP:
       return GetTempDir(result);
     case base::DIR_HOME:
+#if defined(WINUWP)
+UWP_API_ERROR("GetHomeDir");
+#else
       *result = GetHomeDir();
       return true;
+#endif  // defined(WINUWP)
     case DIR_TEST_DATA: {
       FilePath test_data_path;
       if (!PathService::Get(DIR_SOURCE_ROOT, &test_data_path))

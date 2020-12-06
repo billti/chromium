@@ -15,8 +15,13 @@
 #if defined(OS_WIN)
 #include <windows.h>
 #include "base/win/windows_version.h"
+
+#if defined(WINUWP)
+#define IsWindows8Point1OrGreater() true
+#else
 // VersionHelpers.h must be included after windows.h.
 #include <VersionHelpers.h>
+#endif
 #endif
 
 namespace base {

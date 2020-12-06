@@ -15,12 +15,16 @@
 #include "base/win/current_module.h"
 #include "base/win/scoped_co_mem.h"
 #include "base/win/windows_version.h"
+#include "base/win/uwp_exception.h"
 
 using base::FilePath;
 
 namespace base {
 
 bool PathProviderWin(int key, FilePath* result) {
+#if defined(WINUWP)
+  UWP_API_ERROR("PathProviderWin calls lots of Win32 APIs :-(");
+#else
   // We need to go compute the value. It would be nice to support paths with
   // names longer than MAX_PATH, but the system functions don't seem to be
   // designed for it either, with the exception of GetTempPath (but other
@@ -210,6 +214,7 @@ bool PathProviderWin(int key, FilePath* result) {
 
   *result = cur;
   return true;
+#endif  // defined(WINUWP)
 }
 
 }  // namespace base

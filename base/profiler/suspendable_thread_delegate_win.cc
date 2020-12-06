@@ -12,6 +12,8 @@
 #include "base/profiler/native_unwinder_win.h"
 #include "build/build_config.h"
 
+#include "base/win/uwp_exception.h"
+
 // IMPORTANT NOTE: Some functions within this implementation are invoked while
 // the target thread is suspended so it must not do any allocation from the
 // heap, including indirectly via use of DCHECK/CHECK or other logging
@@ -52,6 +54,9 @@ win::ScopedHandle GetThreadHandle(PlatformThreadId thread_id) {
 
 // Returns the thread environment block pointer for |thread_handle|.
 const TEB* GetThreadEnvironmentBlock(HANDLE thread_handle) {
+#if defined(WINUWP)
+  UWP_API_ERROR("NtQueryInformationThread");
+#else
   // Define the internal types we need to invoke NtQueryInformationThread.
   enum THREAD_INFORMATION_CLASS { ThreadBasicInformation };
 
@@ -86,6 +91,7 @@ const TEB* GetThreadEnvironmentBlock(HANDLE thread_handle) {
     return nullptr;
 
   return basic_info.Teb;
+#endif  // defined(WINUWP)
 }
 
 // Tests whether |stack_pointer| points to a location in the guard page. NO HEAP

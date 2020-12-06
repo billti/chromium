@@ -29,8 +29,11 @@
 
 #if defined(OS_WIN)
 #include <windows.h>
+#include "base/win/uwp_exception.h"
 
+#if !defined(WINUWP)
 #include "base/win/scoped_com_initializer.h"
+#endif
 #endif  // defined(OS_WIN)
 
 namespace base {
@@ -252,13 +255,19 @@ class WorkerThreadCOMDelegate : public WorkerThreadDelegate {
 
   WorkerThreadCOMDelegate(const WorkerThreadCOMDelegate&) = delete;
   WorkerThreadCOMDelegate& operator=(const WorkerThreadCOMDelegate&) = delete;
-  ~WorkerThreadCOMDelegate() override { DCHECK(!scoped_com_initializer_); }
+  ~WorkerThreadCOMDelegate() override { 
+#if !defined(WINUWP)
+      DCHECK(!scoped_com_initializer_);
+#endif
+  }
 
   // WorkerThread::Delegate:
   void OnMainEntry(const WorkerThread* worker) override {
     WorkerThreadDelegate::OnMainEntry(worker);
 
+#if !defined(WINUWP)
     scoped_com_initializer_ = std::make_unique<win::ScopedCOMInitializer>();
+#endif
   }
 
   RegisteredTaskSource GetWork(WorkerThread* worker) override {
@@ -324,7 +333,9 @@ class WorkerThreadCOMDelegate : public WorkerThreadDelegate {
   }
 
   void OnMainExit(WorkerThread* /* worker */) override {
+#if !defined(WINUWP)
     scoped_com_initializer_.reset();
+#endif
   }
 
   void WaitForWork(WaitableEvent* wake_up_event) override {
@@ -339,6 +350,9 @@ class WorkerThreadCOMDelegate : public WorkerThreadDelegate {
 
  private:
   RegisteredTaskSource GetWorkFromWindowsMessageQueue() {
+#if defined(WINUWP)
+  UWP_API_ERROR("PeekMessage");
+#else
     MSG msg;
     if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE) != FALSE) {
       Task pump_message_task(FROM_HERE,
@@ -365,6 +379,7 @@ class WorkerThreadCOMDelegate : public WorkerThreadDelegate {
       }
     }
     return nullptr;
+#endif
   }
 
   bool get_work_first_ = true;
@@ -372,7 +387,9 @@ class WorkerThreadCOMDelegate : public WorkerThreadDelegate {
       MakeRefCounted<Sequence>(TaskTraits{MayBlock()},
                                nullptr,
                                TaskSourceExecutionMode::kParallel);
+#if !defined(WINUWP)
   std::unique_ptr<win::ScopedCOMInitializer> scoped_com_initializer_;
+#endif
 };
 
 #endif  // defined(OS_WIN)

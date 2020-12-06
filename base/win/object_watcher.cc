@@ -10,6 +10,8 @@
 #include "base/logging.h"
 #include "base/threading/sequenced_task_runner_handle.h"
 
+#include "base/win/uwp_exception.h"
+
 namespace base {
 namespace win {
 
@@ -34,6 +36,9 @@ bool ObjectWatcher::StartWatchingMultipleTimes(HANDLE object,
 }
 
 bool ObjectWatcher::StopWatching() {
+#if defined(WINUWP)
+UWP_API_ERROR("UnregisterWaitEx");
+#else
   if (!wait_object_)
     return false;
 
@@ -49,6 +54,7 @@ bool ObjectWatcher::StopWatching() {
 
   Reset();
   return true;
+#endif  // defined(WINUWP)
 }
 
 bool ObjectWatcher::IsWatching() const {
@@ -75,6 +81,9 @@ bool ObjectWatcher::StartWatchingInternal(HANDLE object,
                                           Delegate* delegate,
                                           bool execute_only_once,
                                           const Location& from_here) {
+#if defined(WINUWP)
+UWP_API_ERROR("RegisterWaitForSingleObject ");
+#else
   DCHECK(delegate);
   DCHECK(!wait_object_) << "Already watching an object";
   DCHECK(SequencedTaskRunnerHandle::IsSet());
@@ -104,6 +113,7 @@ bool ObjectWatcher::StartWatchingInternal(HANDLE object,
   }
 
   return true;
+#endif  // defined(WINUWP)
 }
 
 void ObjectWatcher::Signal(Delegate* delegate) {

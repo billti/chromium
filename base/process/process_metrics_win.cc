@@ -18,6 +18,7 @@
 #include "base/process/process_metrics_iocounters.h"
 #include "base/system/sys_info.h"
 #include "base/threading/scoped_blocking_call.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 namespace {
@@ -166,7 +167,11 @@ bool ProcessMetrics::GetIOCounters(IoCounters* io_counters) const {
   if (!process_.IsValid())
     return false;
 
+#if defined(WINUWP)
+  UWP_API_ERROR("GetProcessIoCounters");
+#else
   return GetProcessIoCounters(process_.Get(), io_counters) != FALSE;
+#endif  // defined(WINUWP)
 }
 
 uint64_t ProcessMetrics::GetCumulativeDiskUsageInBytes() {
@@ -190,6 +195,9 @@ ProcessMetrics::ProcessMetrics(ProcessHandle process) {
 }
 
 size_t GetSystemCommitCharge() {
+#if defined(WINUWP)
+  UWP_API_ERROR("GetPerformanceInfo");
+#else
   // Get the System Page Size.
   SYSTEM_INFO system_info;
   GetSystemInfo(&system_info);
@@ -200,6 +208,7 @@ size_t GetSystemCommitCharge() {
     return 0;
   }
   return (info.CommitTotal * system_info.dwPageSize) / 1024;
+#endif // defined(WINUWP)
 }
 
 size_t GetPageSize() {
@@ -268,7 +277,10 @@ std::unique_ptr<Value> SystemPerformanceInfo::ToValue() const {
 // Retrieves performance counters from the operating system.
 // Fills in the provided |info| structure. Returns true on success.
 BASE_EXPORT bool GetSystemPerformanceInfo(SystemPerformanceInfo* info) {
-  static const auto query_system_information_ptr =
+#if defined(WINUWP)
+  UWP_API_ERROR("GetModuleHandle & NtQuerySystemInformation");
+#else
+    static const auto query_system_information_ptr =
       reinterpret_cast<decltype(&::NtQuerySystemInformation)>(GetProcAddress(
           GetModuleHandle(L"ntdll.dll"), "NtQuerySystemInformation"));
   if (!query_system_information_ptr)
@@ -300,6 +312,7 @@ BASE_EXPORT bool GetSystemPerformanceInfo(SystemPerformanceInfo* info) {
   info->page_read_ios = counters.PageReadIos;
 
   return true;
+#endif  // defined(WINUWP)
 }
 
 }  // namespace base

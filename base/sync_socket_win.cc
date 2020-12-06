@@ -79,6 +79,14 @@ bool CreatePairImpl(ScopedHandle* socket_a,
   if (overlapped)
     flags |= FILE_FLAG_OVERLAPPED;
 
+#if defined(WINUWP)
+  ScopedHandle handle_b(CreateFileFromAppW(name, GENERIC_READ | GENERIC_WRITE,
+                                    0,     // no sharing.
+                                    NULL,  // default security attributes.
+                                    OPEN_EXISTING,  // opens existing pipe.
+                                    flags,
+                                    NULL));  // no template file.
+#else
   ScopedHandle handle_b(CreateFileW(name,
                                     GENERIC_READ | GENERIC_WRITE,
                                     0,          // no sharing.
@@ -86,6 +94,7 @@ bool CreatePairImpl(ScopedHandle* socket_a,
                                     OPEN_EXISTING,  // opens existing pipe.
                                     flags,
                                     NULL));     // no template file.
+#endif // defined(WINUWP)
   if (!handle_b.IsValid()) {
     DPLOG(ERROR) << "CreateFileW failed";
     return false;

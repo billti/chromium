@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 #include "base/win/event_trace_provider.h"
+#include "base/win/uwp_exception.h"
 
 #include <windows.h>
 
@@ -105,7 +106,11 @@ ULONG EtwTraceProvider::Log(const EtwEventClass& event_class,
       message ? static_cast<ULONG>(sizeof(message[0]) * (1 + strlen(message)))
               : 0;
 
+#if defined(WINUWP)
+UWP_API_ERROR("TraceEvent");
+#else
   return ::TraceEvent(session_handle_, &event.header);
+#endif  // defined(WINUWP)
 }
 
 ULONG EtwTraceProvider::Log(const EtwEventClass& event_class,
@@ -122,14 +127,22 @@ ULONG EtwTraceProvider::Log(const EtwEventClass& event_class,
       message ? static_cast<ULONG>(sizeof(message[0]) * (1 + wcslen(message)))
               : 0;
 
+#if defined(WINUWP)
+UWP_API_ERROR("TraceEvent");
+#else
   return ::TraceEvent(session_handle_, &event.header);
+#endif  // defined(WINUWP)
 }
 
 ULONG EtwTraceProvider::Log(EVENT_TRACE_HEADER* event) {
   if (enable_level_ < event->Class.Level)
     return ERROR_SUCCESS;
 
+#if defined(WINUWP)
+UWP_API_ERROR("TraceEvent");
+#else
   return ::TraceEvent(session_handle_, event);
+#endif  // defined(WINUWP)
 }
 
 }  // namespace win

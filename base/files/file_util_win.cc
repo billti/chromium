@@ -41,6 +41,7 @@
 #include "base/win/scoped_handle.h"
 #include "base/win/windows_types.h"
 #include "base/win/windows_version.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 
@@ -423,6 +424,9 @@ bool ReplaceFile(const FilePath& from_path,
   // fail with ERROR_FILE_NOT_FOUND if |to_path| does not exist. When writing to
   // a network share, we may not be able to change the ACLs. Ignore ACL errors
   // then (REPLACEFILE_IGNORE_MERGE_ERRORS).
+#if defined(WINUWP)
+  UWP_API_ERROR("ReplaceFile");
+#else
   if (::ReplaceFile(to_path.value().c_str(), from_path.value().c_str(), NULL,
                     REPLACEFILE_IGNORE_MERGE_ERRORS, NULL, NULL)) {
     return true;
@@ -444,6 +448,7 @@ bool ReplaceFile(const FilePath& from_path,
                  : replace_error;
   }
   return false;
+#endif  // defined(WINUWP)
 }
 
 bool CopyDirectory(const FilePath& from_path,
@@ -518,6 +523,8 @@ bool GetTempDir(FilePath* path) {
   return true;
 }
 
+// TODO Implement for UWP
+#if !defined(WINUWP)
 FilePath GetHomeDir() {
   wchar_t result[MAX_PATH];
   if (SUCCEEDED(SHGetFolderPath(NULL, CSIDL_PROFILE, NULL, SHGFP_TYPE_CURRENT,
@@ -534,6 +541,7 @@ FilePath GetHomeDir() {
   // Last resort.
   return FilePath(FILE_PATH_LITERAL("C:\\"));
 }
+#endif
 
 File CreateAndOpenTemporaryFileInDir(const FilePath& dir, FilePath* temp_file) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
@@ -690,6 +698,8 @@ bool CreateDirectoryAndGetError(const FilePath& full_path,
   return false;
 }
 
+// TODO: Implement for UWP
+#if !defined(WINUWP)
 bool NormalizeFilePath(const FilePath& path, FilePath* real_path) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
   File file(path, File::FLAG_OPEN | File::FLAG_READ | File::FLAG_SHARE_DELETE);
@@ -761,6 +771,7 @@ bool DevicePathToDriveLetterPath(const FilePath& nt_device_path,
   // letter path to the volume that holds |device_path|, so fail.
   return false;
 }
+#endif // !defined(WINUWP)
 
 FilePath MakeLongFilePath(const FilePath& input) {
   ScopedBlockingCall scoped_blocking_call(FROM_HERE, BlockingType::MAY_BLOCK);
@@ -986,6 +997,8 @@ bool SetNonBlocking(int fd) {
   return false;
 }
 
+// TODO: Implement for UWP
+#if !defined(WINUWP)
 namespace {
 
 // ::PrefetchVirtualMemory() is only available on Windows 8 and above. Chrome
@@ -1048,6 +1061,7 @@ PrefetchResult PreReadFile(const FilePath& file_path,
   }
   return PrefetchResult{PrefetchResultCode::kSuccess};
 }
+#endif
 
 // -----------------------------------------------------------------------------
 

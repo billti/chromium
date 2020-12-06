@@ -3,13 +3,18 @@
 // found in the LICENSE file.
 
 #include "base/native_library.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 
 NativeLibrary LoadNativeLibrary(const FilePath& library_path,
                                 NativeLibraryLoadError* error) {
+#if defined(WINUWP)
+  UWP_API_ERROR("LoadNativeLibraryWithOptions (which calls Win32 APIs)");
+#else
   return LoadNativeLibraryWithOptions(
       library_path, NativeLibraryOptions(), error);
+#endif  // defined(WINUWP)
 }
 
 }  // namespace base

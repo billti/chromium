@@ -125,6 +125,7 @@ typedef FILE* FileHandle;
 
 #if defined(OS_WIN)
 #include "base/win/win_util.h"
+#include "base/win/uwp_exception.h"
 #endif
 
 #if defined(OS_POSIX) || defined(OS_FUCHSIA)
@@ -277,6 +278,10 @@ bool InitializeLogFileHandle() {
     return true;
 
 #if defined(OS_WIN)
+
+#if defined(WINUWP)
+  UWP_API_ERROR("CreateFile");
+#else
   // The FILE_APPEND_DATA access mask ensures that the file is atomically
   // appended to across accesses from multiple threads.
   // https://msdn.microsoft.com/en-us/library/windows/desktop/aa364399(v=vs.85).aspx
@@ -311,6 +316,7 @@ bool InitializeLogFileHandle() {
       return false;
     }
   }
+#endif // defined(WINUWP)
 #elif defined(OS_POSIX) || defined(OS_FUCHSIA)
   g_log_file = fopen(g_log_file_name->c_str(), "a");
   if (g_log_file == nullptr)
@@ -533,6 +539,10 @@ void DisplayDebugMessageInDialog(const std::string& str) {
     return;
 
 #if defined(OS_WIN)
+
+#if defined(WINUWP)
+  OutputDebugStringW(base::as_wcstr(base::UTF8ToUTF16(str)));
+#else
   // We intentionally don't implement a dialog on other platforms.
   // You can just look at stderr.
   if (base::win::IsUser32AndGdi32Available()) {
@@ -541,6 +551,8 @@ void DisplayDebugMessageInDialog(const std::string& str) {
   } else {
     OutputDebugStringW(base::as_wcstr(base::UTF8ToUTF16(str)));
   }
+#endif // defined(WINUWP)
+
 #endif  // defined(OS_WIN)
 }
 #endif  // !defined(NDEBUG)
@@ -562,12 +574,14 @@ LogMessage::~LogMessage() {
     !defined(OS_AIX)
   if (severity_ == LOGGING_FATAL && !base::debug::BeingDebugged()) {
     // Include a stack trace on a fatal, unless a debugger is attached.
+#if !defined(WINUWP)
     base::debug::StackTrace stack_trace;
     stream_ << std::endl;  // Newline to separate from log message.
     stack_trace.OutputToStream(&stream_);
     base::debug::TaskTrace task_trace;
     if (!task_trace.empty())
       task_trace.OutputToStream(&stream_);
+#endif
 
     // Include the IPC context, if any.
     // TODO(chrisha): Integrate with symbolization once those tools exist!

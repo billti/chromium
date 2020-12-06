@@ -321,7 +321,7 @@ component("skia") {
     }
   }
 
-  if (is_win) {
+  if (is_win && !is_winuwp) {
     sources += [
       # Select the right BitmapPlatformDevice.
       "ext/raster_handle_allocator_win.cc",

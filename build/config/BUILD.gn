@@ -108,6 +108,11 @@ config("feature_flags") {
     defines += [ "GOOGLE_CHROME_BUILD" ]
   }
 
+  # Needed for ICU to compile. See third_party\icu\source\common\unicode\platform.h@259
+  if (is_winuwp) {
+    defines += ["U_PLATFORM_HAS_WINUWP_API=1"]
+  }
+
   # ==============================================
   #   PLEASE DO NOT ADD MORE THINGS TO THIS LIST
   # ==============================================
@@ -203,6 +208,7 @@ config("default_libs") {
       libs += [
         "dloadhelper.lib",
         "WindowsApp.lib",
+        "Bcrypt.lib",
       ]
     } else {
       # These libraries are not compatible with Windows UWP (i.e. store apps.)

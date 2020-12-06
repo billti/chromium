@@ -8,6 +8,26 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#if defined(WINUWP)
+
+#include <bcrypt.h>
+#include <ntstatus.h>
+
+#include "base/check.h"
+
+namespace base {
+
+void RandBytes(void* output, size_t output_length) {
+  NTSTATUS result = BCryptGenRandom(NULL, static_cast<PUCHAR>(output),
+      static_cast<ULONG>(output_length), BCRYPT_USE_SYSTEM_PREFERRED_RNG);
+
+  CHECK(result == STATUS_SUCCESS);
+}
+
+}  // namespace base
+
+#else
+
 // #define needed to link in RtlGenRandom(), a.k.a. SystemFunction036.  See the
 // "Community Additions" comment on MSDN here:
 // http://msdn.microsoft.com/en-us/library/windows/desktop/aa387694.aspx
@@ -36,3 +56,5 @@ void RandBytes(void* output, size_t output_length) {
 }
 
 }  // namespace base
+
+#endif // defined(WINUWP)
