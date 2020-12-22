@@ -29,6 +29,10 @@ copy("appx") {
     "//v8:v8_libbase",
     "//third_party/abseil-cpp:absl",
     "//third_party/icu:icudata",
+    "//skia:skia",
+    "//third_party:freetype_harfbuzz",
+    "//third_party/libpng:libpng",
+    "//base",
     # Need the below to be able to copy libc++.dll
     "//build/config:executable_deps",
   ]
@@ -58,6 +62,12 @@ copy("appx") {
     "$root_out_dir/icuuc.dll",
     "$root_out_dir/icudtl.dat",
     "$root_out_dir/snapshot_blob.bin",
+
+    # Skia binaries
+    "$root_out_dir/skia.dll",
+    "$root_out_dir/base.dll",
+    "$root_out_dir/libpng.dll",
+    "$root_out_dir/freetype_harfbuzz.dll",
   ]
   outputs = ["$root_out_dir/edtium/{{source_file_part}}"]
 }
@@ -70,6 +80,10 @@ executable("edtium") {
     "//v8:v8",
     "//v8:v8_libplatform",
     "//v8:v8_libbase",
+    "//skia:skia",
+    "//third_party:freetype_harfbuzz",
+    "//third_party/libpng:libpng",
+    "//base",
   ]
 
   sources = [
@@ -83,7 +97,8 @@ executable("edtium") {
 
   libs = [
     "libEGL.dll.lib",
-    "libGLESv2.dll.lib"
+    "libGLESv2.dll.lib",
+    "skia.dll.lib",
   ]
 
   configs -= [ "//build/config/win:console" ]

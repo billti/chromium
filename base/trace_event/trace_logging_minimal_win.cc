@@ -145,6 +145,12 @@ int32_t TlmProvider::Register(const char* provider_name,
 
 #elif TLM_HAVE_EVENT_SET_INFORMATION == 2
 
+#if defined(WINUWP)
+      status = EventSetInformation(reg_handle_, EventProviderSetTraits,
+                                         provider_metadata_,
+                                         provider_metadata_size_);
+      DCHECK_EQ(status, ERROR_SUCCESS);
+#else
   HMODULE eventing_lib;
   if (GetModuleHandleExW(0, L"api-ms-win-eventing-provider-l1-1-0.dll",
                          &eventing_lib) ||
@@ -165,6 +171,7 @@ int32_t TlmProvider::Register(const char* provider_name,
 
     FreeLibrary(eventing_lib);
   }
+#endif // defined(WINUWP)
 
 #else  // TLM_HAVE_EVENT_SET_INFORMATION == 0
 

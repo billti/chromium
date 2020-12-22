@@ -8,6 +8,7 @@
 #include <windows.h>
 
 #include "base/scoped_generic.h"
+#include "base/win/uwp_exception.h"
 
 namespace base {
 namespace win {
@@ -17,14 +18,24 @@ namespace internal {
 template <class T>
 struct ScopedGDIObjectTraits {
   static T InvalidValue() { return nullptr; }
-  static void Free(T object) { DeleteObject(object); }
+  static void Free(T object) { 
+#if defined(WINUWP)
+  UWP_API_ERROR("DeleteObject");
+#else
+	  DeleteObject(object);
+#endif // defined(WINUWP)
+  }
 };
 
 // An explicit specialization for HICON because we have to call DestroyIcon()
 // instead of DeleteObject() for HICON.
 template <>
 void inline ScopedGDIObjectTraits<HICON>::Free(HICON icon) {
+#if defined(WINUWP)
+  UWP_API_ERROR("DestroyIcon");
+#else
   DestroyIcon(icon);
+#endif
 }
 
 }  // namespace internal

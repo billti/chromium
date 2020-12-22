@@ -15,6 +15,7 @@
 namespace base {
 namespace win {
 
+#if !defined(WINUWP)
 // Like ScopedHandle but for HDC.  Only use this on HDCs returned from
 // GetDC.
 class ScopedGetDC {
@@ -63,6 +64,8 @@ class CreateDCTraits {
 };
 
 typedef GenericScopedHandle<CreateDCTraits, DummyVerifierTraits> ScopedCreateDC;
+
+#endif // !defined(WINUWP)
 
 }  // namespace win
 }  // namespace base

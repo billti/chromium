@@ -6,6 +6,7 @@
 
 #include <stddef.h>
 #include <windows.h>
+#include "base/win/uwp_exception.h"
 
 #include "base/check_op.h"
 #include "base/debug/gdi_debug_util_win.h"
@@ -82,6 +83,9 @@ COLORREF SkColorToCOLORREF(SkColor color) {
 }
 
 void InitializeDC(HDC context) {
+#if defined(WINUWP)
+  UWP_API_ERROR("SetGraphicsMode and others");
+#else
   // Enables world transformation.
   // If the GM_ADVANCED graphics mode is set, GDI always draws arcs in the
   // counterclockwise direction in logical space. This is equivalent to the
@@ -118,9 +122,13 @@ void InitializeDC(HDC context) {
   SkASSERT(res != 0);
   res = SetROP2(context, R2_COPYPEN);
   SkASSERT(res != 0);
+#endif // defined(WINUWP)
 }
 
 void LoadTransformToDC(HDC dc, const SkMatrix& matrix) {
+#if defined(WINUWP)
+  UWP_API_ERROR("SetWorldTransform and others");
+#else
   XFORM xf;
   xf.eM11 = matrix[SkMatrix::kMScaleX];
   xf.eM21 = matrix[SkMatrix::kMSkewX];
@@ -129,11 +137,15 @@ void LoadTransformToDC(HDC dc, const SkMatrix& matrix) {
   xf.eM22 = matrix[SkMatrix::kMScaleY];
   xf.eDy = matrix[SkMatrix::kMTransY];
   SetWorldTransform(dc, &xf);
+#endif // defined(WINUWP)
 }
 
 void CopyHDC(HDC source, HDC destination, int x, int y, bool is_opaque,
              const RECT& src_rect, const SkMatrix& transform) {
 
+#if defined(WINUWP)
+  UWP_API_ERROR("BitBlt");
+#else
   int copy_width = src_rect.right - src_rect.left;
   int copy_height = src_rect.bottom - src_rect.top;
 
@@ -169,15 +181,20 @@ void CopyHDC(HDC source, HDC destination, int x, int y, bool is_opaque,
                   blend_function);
   }
   LoadTransformToDC(source, transform);
+#endif // defined(WINUWP)
 }
 
 SkImageInfo PrepareAllocation(HDC context, BITMAP* backing) {
+#if defined(WINUWP)
+  UWP_API_ERROR("GetCurrentObject and GetObject");
+#else
   HBITMAP backing_handle =
       static_cast<HBITMAP>(GetCurrentObject(context, OBJ_BITMAP));
   const size_t backing_size = sizeof *backing;
   return (GetObject(backing_handle, backing_size, backing) == backing_size)
             ? SkImageInfo::MakeN32Premul(backing->bmWidth, backing->bmHeight)
             : SkImageInfo();
+#endif // defined(WINUWP)
 }
 
 sk_sp<SkSurface> MapPlatformSurface(HDC context) {
@@ -236,12 +253,16 @@ base::win::ScopedBitmap CreateHBitmapFromN32SkBitmap(const SkBitmap& bitmap) {
   void* bits;
   HBITMAP hbitmap;
   {
+#if defined(WINUWP)
+    UWP_API_ERROR("HDC");
+#else
     base::win::ScopedGetDC screen_dc(nullptr);
     // By giving a null hSection, the |bits| will be destroyed when the
     // |hbitmap| is destroyed.
     hbitmap =
         CreateDIBSection(screen_dc, reinterpret_cast<BITMAPINFO*>(&header),
                          DIB_RGB_COLORS, &bits, nullptr, 0);
+#endif
   }
   if (hbitmap) {
     memcpy(bits, bitmap.getPixels(), bytes);
@@ -264,6 +285,9 @@ base::win::ScopedBitmap CreateHBitmapXRGB8888(int width,
                                               int height,
                                               HANDLE shared_section,
                                               void** data) {
+#if defined(WINUWP)
+  UWP_API_ERROR("CreateDIBSection");
+#else
   // CreateDIBSection fails to allocate anything if we try to create an empty
   // bitmap, so just create a minimal bitmap.
   if ((width == 0) || (height == 0)) {
@@ -282,6 +306,7 @@ base::win::ScopedBitmap CreateHBitmapXRGB8888(int width,
     base::debug::CollectGDIUsageAndDie(&hdr, shared_section);
 
   return base::win::ScopedBitmap(hbitmap);
+#endif // defined(WINUWP)
 }
 
 }  // namespace skia

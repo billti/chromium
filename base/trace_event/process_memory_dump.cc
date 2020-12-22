@@ -16,6 +16,7 @@
 #include "base/trace_event/memory_infra_background_allowlist.h"
 #include "base/trace_event/trace_event_impl.h"
 #include "base/trace_event/traced_value.h"
+#include "base/win/uwp_exception.h"
 #include "base/unguessable_token.h"
 #include "build/build_config.h"
 #include "third_party/perfetto/protos/perfetto/trace/memory_graph.pbzero.h"
@@ -83,6 +84,9 @@ size_t ProcessMemoryDump::GetSystemPageSize() {
 // static
 size_t ProcessMemoryDump::CountResidentBytes(void* start_address,
                                              size_t mapped_size) {
+#if defined(WINUWP)
+  UWP_API_ERROR("PSAPI_WORKING_SET_EX_INFORMATION");
+#else
   const size_t page_size = GetSystemPageSize();
   const uintptr_t start_pointer = reinterpret_cast<uintptr_t>(start_address);
   DCHECK_EQ(0u, start_pointer % page_size);
@@ -164,6 +168,7 @@ size_t ProcessMemoryDump::CountResidentBytes(void* start_address,
     LOG(ERROR) << "CountResidentBytes failed. The resident size is invalid";
   }
   return total_resident_pages;
+#endif // defined(WINUWP)
 }
 
 // static

@@ -13,6 +13,7 @@
 #include "base/debug/profiler.h"
 #include "base/trace_event/process_memory_dump.h"
 #include "base/trace_event/traced_value.h"
+#include "base/win/uwp_exception.h"
 #include "build/build_config.h"
 
 #if defined(OS_APPLE)
@@ -45,6 +46,9 @@ struct WinHeapInfo {
 // Unfortunately, there is no safe way to collect information from secondary
 // heaps due to limitations and racy nature of this piece of WinAPI.
 void WinHeapMemoryDumpImpl(WinHeapInfo* crt_heap_info) {
+#if defined(WINUWP)
+  UWP_API_ERROR("HeapWalk");
+#else
   // Iterate through whichever heap our CRT is using.
   HANDLE crt_heap = reinterpret_cast<HANDLE>(_get_heap_handle());
   ::HeapLock(crt_heap);
@@ -61,6 +65,7 @@ void WinHeapMemoryDumpImpl(WinHeapInfo* crt_heap_info) {
     }
   }
   CHECK(::HeapUnlock(crt_heap) == TRUE);
+#endif // defined(WINUWP)
 }
 #endif  // defined(OS_WIN)
 
